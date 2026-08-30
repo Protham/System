@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>The System</title>
+
+<!-- PWA / installability -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#03050a">
+<meta name="background-color" content="#03050a">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS home-screen support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="The System">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:#03050a;
+  --bg-panel:#0a0f1d;
+  --bg-panel2:#0d1526;
+  --bg-inset:#060a14;
+  --blue:#2dd4ff;
+  --blue-soft:rgba(45,212,255,.14);
+  --blue-dim:#1c5570;
+  --violet:#9b6cf6;
+  --violet-soft:rgba(155,108,246,.16);
+  --gold:#f5c451;
+  --text:#d9e6f7;
+  --text-dim:#5f7089;
+  --text-dimmer:#3a4558;
+  --danger:#ef4a5f;
+  --green:#39e2a3;
+  --line: rgba(45,212,255,.28);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;overscroll-behavior-y:none;}
+html{height:100%;}
+body{
+  background:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(45,212,255,.10), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 110% 10%, rgba(155,108,246,.10), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  font-family:'Rajdhani',sans-serif;
+  min-height:100%;
+  min-height:100dvh;
+  padding:calc(28px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  -webkit-user-select:none;
+  user-select:none;
+  touch-action:manipulation;
+}
+input, .player-name{
+  -webkit-user-select:text;
+  user-select:text;
+}
+
+.wrap{max-width:900px;margin:0 auto;}
+
+/* ---------- typography helpers ---------- */
+h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
+.eyebrow{
+  font-family:'Orbitron',sans-serif;
+  font-size:11px;
+  letter-spacing:.35em;
+  color:var(--blue);
+  text-transform:uppercase;
+  opacity:.85;
+}
+.mono-num{font-family:'Orbitron',sans-serif;}
+
+/* ---------- header ---------- */
+.hero{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  margin-bottom:22px;flex-wrap:wrap;gap:14px;
+}
+.hero-title{
+  font-size:28px;font-weight:900;color:#eef6ff;
+  text-shadow:0 0 18px rgba(45,212,255,.35);
+  margin:2px 0 0;
+}
+.hero-sub{color:var(--text-dim);font-size:14px;letter-spacing:.06em;margin-top:4px;}
+.rank-chip{
+  font-family:'Orbitron',sans-serif;
+  font-size:13px;font-weight:700;
+  border:1px solid var(--line);
+  background:var(--bg-panel2);
+  padding:8px 16px;
+  color:var(--rank-color, var(--blue));
+  box-shadow:0 0 14px var(--rank-glow, rgba(45,212,255,.25)) inset, 0 0 10px var(--rank-glow, rgba(45,212,255,.15));
+  letter-spacing:.12em;
+  white-space:nowrap;
+}
+
+/* ---------- panel / HUD frame ---------- */
+.panel{
+  position:relative;
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel2));
+  border:1px solid var(--line);
+  padding:20px 22px 22px;
+  margin-bottom:20px;
+  box-shadow:0 0 0 1px rgba(45,212,255,.03), 0 20px 40px -20px rgba(0,0,0,.6);
+}
+.panel::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg, rgba(45,212,255,.05), transparent 40%);
+}
+.corner{position:absolute;width:14px;height:14px;pointer-events:none;}
+.corner.tl{top:-1px;left:-1px;border-top:2px solid var(--blue);border-left:2px solid var(--blue);}
+.corner.tr{top:-1px;right:-1px;border-top:2px solid var(--blue);border-right:2px solid var(--blue);}
+.corner.bl{bottom:-1px;left:-1px;border-bottom:2px solid var(--blue);border-left:2px solid var(--blue);}
+.corner.br{bottom:-1px;right:-1px;border-bottom:2px solid var(--blue);border-right:2px solid var(--blue);}
+
+.panel-title{
+  font-family:'Orbitron',sans-serif;
+  font-size:12px;letter-spacing:.28em;
+  color:var(--blue);text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;
+  margin:0 0 16px;
+}
+.panel-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);}
+
+/* ---------- player row ---------- */
+.player-row{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:14px;}
+.player-name{
+  background:transparent;border:none;border-bottom:1px dashed var(--text-dimmer);
+  font-family:'Orbitron',sans-serif;color:#eef6ff;font-size:18px;font-weight:700;
+  padding:2px 2px;outline:none;letter-spacing:.03em;width:220px;
+}
+.player-name:focus{border-bottom-color:var(--blue);}
+.level-box{text-align:right;}
+.level-num{font-size:34px;font-weight:900;color:var(--blue);text-shadow:0 0 16px rgba(45,212,255,.45);line-height:1;}
+.level-lbl{font-size:10px;letter-spacing:.3em;color:var(--text-dim);text-transform:uppercase;}
+
+/* ---------- xp bar ---------- */
+.xp-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px;letter-spacing:.04em;}
+.xp-track{
+  height:14px;background:var(--bg-inset);border:1px solid var(--line);
+  position:relative;overflow:hidden;
+}
+.xp-fill{
+  height:100%;
+  background:linear-gradient(90deg, var(--blue-dim), var(--blue));
+  box-shadow:0 0 12px rgba(45,212,255,.6);
+  transition:width .6s cubic-bezier(.2,.8,.3,1);
+  position:relative;
+}
+.xp-fill::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(115deg, rgba(255,255,255,.12) 0 2px, transparent 2px 10px);
+  mix-blend-mode:overlay;
+}
+
+/* ---------- consistency ---------- */
+.consistency-row{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:16px;padding-top:14px;border-top:1px dashed rgba(45,212,255,.18);
+}
+.consistency-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.22em;color:var(--text-dim);text-transform:uppercase;}
+.consistency-sub{font-size:11px;color:var(--text-dimmer);margin-top:3px;letter-spacing:.02em;}
+.consistency-num{
+  font-family:'Orbitron',sans-serif;font-size:30px;font-weight:900;line-height:1;
+  transition:color .6s ease, text-shadow .6s ease;
+}
+
+/* ---------- goal wizard chat ---------- */
+.chat-modal{max-height:85vh;display:flex;flex-direction:column;}
+.chat-log{
+  flex:1;min-height:180px;max-height:320px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;
+  padding:4px 2px;margin-bottom:12px;
+}
+.chat-msg{max-width:85%;padding:10px 13px;font-size:13.5px;line-height:1.45;}
+.chat-msg.system{
+  align-self:flex-start;background:var(--bg-inset);border:1px solid rgba(45,212,255,.3);
+  color:var(--text);border-top-left-radius:0;
+}
+.chat-msg.user{
+  align-self:flex-end;background:var(--violet-soft);border:1px solid var(--violet);
+  color:#eee6ff;border-top-right-radius:0;
+}
+.chat-msg .cm-quests{margin-top:6px;padding-left:2px;font-size:12px;color:var(--text-dim);line-height:1.6;}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{
+  flex:1;background:var(--bg-inset);border:1px solid var(--text-dimmer);color:var(--text);
+  padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;
+}
+.chat-input-row input:focus{border-color:var(--blue);}
+.chat-send{flex:0 0 auto;padding:10px 18px;}
+
+/* ---------- stats grid ---------- */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+.stat{
+  background:var(--bg-inset);border:1px solid rgba(45,212,255,.16);
+  padding:12px 14px;display:flex;align-items:center;justify-content:space-between;
+}
+.stat-name{font-size:12px;letter-spacing:.14em;color:var(--text-dim);text-transform:uppercase;}
+.stat-val{font-family:'Orbitron',sans-serif;font-size:20px;color:#eef6ff;font-weight:700;}
+.stat-plus{
+  width:26px;height:26px;border:1px solid var(--blue);background:var(--blue-soft);
+  color:var(--blue);font-size:15px;font-weight:700;cursor:pointer;line-height:1;
+  display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+.stat-plus:hover{background:var(--blue);color:#03050a;box-shadow:0 0 12px rgba(45,212,255,.6);}
+.stat-plus:disabled{opacity:.25;cursor:not-allowed;background:transparent;}
+.points-note{margin-top:12px;font-size:12px;color:var(--text-dim);letter-spacing:.05em;}
+.points-note b{color:var(--gold);}
+
+/* ---------- quest tabs ---------- */
+.tabs{display:flex;gap:6px;margin-bottom:14px;}
+.tab{
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.14em;
+  padding:8px 14px;background:var(--bg-inset);border:1px solid var(--text-dimmer);
+  color:var(--text-dim);cursor:pointer;text-transform:uppercase;transition:.15s;
+}
+.tab.active{color:var(--blue);border-color:var(--blue);background:var(--blue-soft);box-shadow:0 0 10px rgba(45,212,255,.25) inset;}
+
+.add-btn{
+  font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.1em;
+  padding:9px 16px;background:var(--violet-soft);border:1px solid var(--violet);
+  color:#e6dbff;cursor:pointer;text-transform:uppercase;transition:.15s;
+}
+.add-btn:hover{background:var(--violet);color:#0b0620;box-shadow:0 0 14px rgba(155,108,246,.5);}
+.goal-btn{background:var(--blue-soft);border-color:var(--blue);color:var(--blue);}
+.goal-btn:hover{background:var(--blue);color:#03050a;box-shadow:0 0 14px rgba(45,212,255,.5);}
+
+.quest-list{display:flex;flex-direction:column;gap:8px;}
+.quest{
+  display:flex;align-items:center;gap:12px;
+  background:var(--bg-inset);border:1px solid rgba(45,212,255,.14);
+  padding:12px 14px;position:relative;
+}
+.quest.done{opacity:.45;}
+.quest.done .quest-title{text-decoration:line-through;}
+.check{
+  width:22px;height:22px;flex:0 0 auto;border:1px solid var(--blue);
+  cursor:pointer;position:relative;background:var(--bg-panel);
+  transform:rotate(45deg);
+}
+.check.checked{background:var(--blue);box-shadow:0 0 10px rgba(45,212,255,.7);}
+.check.checked::after{
+  content:'';position:absolute;inset:0;
+}
+.q-body{flex:1;min-width:0;}
+.q-title{font-size:15px;font-weight:600;color:#eaf2fb;}
+.q-meta{display:flex;gap:10px;align-items:center;margin-top:3px;flex-wrap:wrap;}
+.tag{font-size:10px;letter-spacing:.08em;padding:2px 8px;border:1px solid currentColor;text-transform:uppercase;}
+.rank-tag{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;}
+.q-xp{font-size:11px;color:var(--text-dim);}
+.qty-tag{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;color:var(--green);border:1px solid var(--green);}
+.streak{font-size:11px;color:var(--gold);}
+.quest-streak{font-size:11px;color:var(--violet);}
+.temp-rank-tag{
+  font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;
+  color:#2dd4ff;border:1px dashed #2dd4ff;background:rgba(45,212,255,.08);
+  animation:tempPulse 1.6s ease-in-out infinite;
+}
+@keyframes tempPulse{
+  0%,100%{box-shadow:0 0 0 rgba(45,212,255,0);}
+  50%{box-shadow:0 0 8px rgba(45,212,255,.45);}
+}
+.q-undo{
+  flex:0 0 auto;font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;
+  width:30px;height:30px;background:var(--bg-panel2);border:1px solid var(--text-dimmer);
+  color:var(--text-dim);cursor:pointer;transition:.15s;
+}
+.q-undo:hover{border-color:var(--violet);color:#e6dbff;}
+.quest{cursor:pointer;}
+.quest-expanded{
+  margin-top:10px;padding-top:10px;border-top:1px dashed rgba(239,74,95,.25);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+}
+.quest-expanded-note{font-size:11px;color:var(--text-dimmer);font-style:italic;letter-spacing:.02em;}
+.q-remove-btn{
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.08em;
+  padding:8px 14px;background:rgba(239,74,95,.12);border:1px solid var(--danger);
+  color:var(--danger);cursor:pointer;text-transform:uppercase;transition:.15s;
+}
+.q-remove-btn:hover{background:var(--danger);color:#1a0508;}
+.empty{color:var(--text-dim);font-size:13px;padding:20px 0;text-align:center;letter-spacing:.04em;}
+
+/* ---------- modal ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(2,4,9,.75);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;z-index:50;padding:16px;
+}
+.overlay.show{display:flex;}
+.modal{
+  width:100%;max-width:420px;background:var(--bg-panel2);border:1px solid var(--blue);
+  padding:24px;position:relative;box-shadow:0 0 40px rgba(45,212,255,.15);
+}
+.modal h3{margin:0 0 18px;font-size:14px;letter-spacing:.2em;color:var(--blue);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;letter-spacing:.12em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;}
+.field input, .field select{
+  width:100%;background:var(--bg-inset);border:1px solid var(--text-dimmer);
+  color:var(--text);padding:9px 10px;font-family:'Rajdhani',sans-serif;font-size:14px;
+  outline:none;
+}
+.field input:focus, .field select:focus{border-color:var(--blue);}
+.rank-select{display:flex;gap:6px;flex-wrap:wrap;}
+.rank-opt{
+  flex:1;min-width:40px;text-align:center;padding:8px 0;border:1px solid var(--text-dimmer);
+  cursor:pointer;font-family:'Orbitron',sans-serif;font-size:12px;color:var(--text-dim);transition:.15s;
+}
+.rank-opt.sel{border-color:var(--sel-color);color:var(--sel-color);background:var(--sel-glow);}
+.recur-select{display:flex;gap:8px;}
+.recur-opt{flex:1;text-align:center;padding:9px 0;border:1px solid var(--text-dimmer);cursor:pointer;font-size:13px;color:var(--text-dim);}
+.recur-opt.sel{border-color:var(--violet);color:#e6dbff;background:var(--violet-soft);}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.btn-primary{
+  flex:1;font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.1em;
+  background:var(--blue);color:#03050a;border:none;padding:11px 0;cursor:pointer;text-transform:uppercase;
+}
+.btn-primary:hover{box-shadow:0 0 16px rgba(45,212,255,.6);}
+.btn-ghost{
+  flex:1;font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:.1em;
+  background:transparent;color:var(--text-dim);border:1px solid var(--text-dimmer);padding:11px 0;cursor:pointer;text-transform:uppercase;
+}
+.close-x{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;}
+.field.disabled{opacity:.35;pointer-events:none;}
+.sr-tag{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;color:var(--violet);border:1px solid var(--violet);background:var(--violet-soft);}
+.misc-tag{font-size:10px;letter-spacing:.08em;padding:2px 8px;border:1px solid var(--text-dimmer);color:var(--text-dim);text-transform:uppercase;}
+.sr-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+.sr-row select{flex:2;background:var(--bg-inset);border:1px solid var(--text-dimmer);color:var(--text);padding:9px 10px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;}
+.sr-row select:focus{border-color:var(--blue);}
+.sr-row input{flex:1;background:var(--bg-inset);border:1px solid var(--text-dimmer);color:var(--text);padding:9px 10px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;}
+.sr-row input:focus{border-color:var(--blue);}
+.sr-remove{flex:0 0 auto;width:34px;height:34px;background:none;border:1px solid var(--text-dimmer);color:var(--text-dim);cursor:pointer;font-size:14px;}
+.sr-remove:hover{border-color:var(--danger);color:var(--danger);}
+.sr-add-btn{
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.08em;
+  background:none;border:1px dashed var(--text-dimmer);color:var(--text-dim);
+  padding:8px 12px;cursor:pointer;width:100%;text-transform:uppercase;transition:.15s;
+}
+.sr-add-btn:hover{border-color:var(--violet);color:#e6dbff;}
+.sr-add-btn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* ---------- system notification ---------- */
+.sysnotif-layer{position:fixed;top:22px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:100;pointer-events:none;}
+.sysnotif{
+  font-family:'Orbitron',sans-serif;
+  background:rgba(6,10,20,.92);border:1px solid var(--blue);
+  padding:14px 26px;min-width:260px;text-align:center;
+  box-shadow:0 0 30px rgba(45,212,255,.35);
+  animation:notifIn .35s ease-out, notifOut .5s ease-in 2.6s forwards;
+  position:relative;
+}
+.sysnotif .n-eyebrow{font-size:10px;letter-spacing:.3em;color:var(--blue);}
+.sysnotif .n-main{font-size:16px;color:#eef6ff;margin-top:6px;letter-spacing:.03em;font-family:'Rajdhani',sans-serif;font-weight:600;}
+.sysnotif.levelup{border-color:var(--gold);box-shadow:0 0 40px rgba(245,196,81,.4);}
+.sysnotif.levelup .n-eyebrow{color:var(--gold);}
+.sysnotif.penalty{border-color:var(--danger);box-shadow:0 0 30px rgba(239,74,95,.35);}
+.sysnotif.penalty .n-eyebrow{color:var(--danger);}
+@keyframes notifIn{from{opacity:0;transform:translateY(-14px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes notifOut{to{opacity:0;transform:translateY(-8px) scale(.98);}}
+
+.footnote{text-align:center;color:var(--text-dimmer);font-size:11px;letter-spacing:.1em;margin-top:24px;}
+.field-hint{margin-top:6px;font-size:11px;color:var(--text-dimmer);letter-spacing:.02em;}
+
+.reminder-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-bottom:18px;padding:10px 14px;background:var(--bg-inset);border:1px solid rgba(45,212,255,.16);
+}
+.reminder-bar .rb-text{font-size:12px;color:var(--text-dim);letter-spacing:.03em;}
+.notif-btn{
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.1em;
+  padding:8px 14px;background:var(--blue-soft);border:1px solid var(--blue);
+  color:var(--blue);cursor:pointer;text-transform:uppercase;transition:.15s;white-space:nowrap;
+}
+.notif-btn:hover{background:var(--blue);color:#03050a;}
+.notif-btn.on{background:rgba(57,226,163,.14);border-color:var(--green);color:var(--green);cursor:default;}
+.notif-btn.on:hover{background:rgba(57,226,163,.14);color:var(--green);}
+.notif-btn.off{background:rgba(239,74,95,.12);border-color:var(--danger);color:var(--danger);cursor:not-allowed;}
+.notif-btn:disabled{opacity:.6;}
+
+.upgrade-btn{
+  margin-top:8px;
+  font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:.1em;
+  padding:6px 12px;background:rgba(245,196,81,.12);border:1px solid var(--gold);
+  color:var(--gold);cursor:pointer;text-transform:uppercase;white-space:nowrap;
+  animation:upgradePulse 1.8s ease-in-out infinite;
+}
+.upgrade-btn:hover{background:var(--gold);color:#1a1200;}
+@keyframes upgradePulse{
+  0%,100%{box-shadow:0 0 0 rgba(245,196,81,0);}
+  50%{box-shadow:0 0 12px rgba(245,196,81,.55);}
+}
+.rank-arrow{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;letter-spacing:.05em;display:flex;align-items:center;gap:12px;}
+
+@media (max-width:520px){
+  .hero-title{font-size:22px;}
+  .level-num{font-size:26px;}
+  .player-name{width:150px;font-size:15px;}
+}
+</style>
+</head>
+<body>
+
+<div class="sysnotif-layer" id="notifLayer"></div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div>
+      <div class="eyebrow">// The System</div>
+      <h1 class="hero-title">QUEST LOG</h1>
+      <div class="hero-sub">Every task logged is a step toward the next rank.</div>
+    </div>
+    <div class="rank-chip" id="rankChip">RANK E</div>
+  </div>
+
+  <div class="reminder-bar">
+    <span class="rb-text" id="rbText">Get notified when a quest's reminder time hits, while this app is open.</span>
+    <button class="notif-btn" id="notifBtn">🔔 Enable Reminders</button>
+  </div>
+
+  <!-- STATUS PANEL -->
+  <div class="panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="panel-title">Status</div>
+
+    <div class="player-row">
+      <input id="playerName" class="player-name" maxlength="24" value="Player" />
+      <div class="level-box">
+        <div class="level-num" id="levelNum">1</div>
+        <div class="level-lbl">Level</div>
+      </div>
+    </div>
+
+    <div class="xp-row">
+      <span>EXP</span>
+      <span id="xpText">0 / 100</span>
+    </div>
+    <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+
+    <div class="consistency-row">
+      <div>
+        <div class="consistency-title">Consistency</div>
+        <div class="consistency-sub">Combined streak-days across all active dailies</div>
+      </div>
+      <div class="consistency-num" id="consistencyNum">0</div>
+    </div>
+  </div>
+
+  <!-- STATS PANEL -->
+  <div class="panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="panel-title">Attributes</div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="points-note">Unspent points: <b id="pointsLeft">0</b> — awarded on level up. Quests can also grant specific attributes directly.</div>
+  </div>
+
+  <!-- QUESTS PANEL -->
+  <div class="panel">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="panel-title">Quests</div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div class="tabs">
+        <div class="tab active" data-tab="active">Active</div>
+        <div class="tab" data-tab="completed">Completed</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="add-btn goal-btn" id="openOnboardBtn">🧭 Talk to the System</button>
+        <button class="add-btn" id="openModalBtn">+ New Quest</button>
+      </div>
+    </div>
+
+    <div class="quest-list" id="questList"></div>
+  </div>
+
+  <div class="footnote">DATA PERSISTS TO THIS DEVICE · ARISE.</div>
+</div>
+
+<!-- ONBOARDING / GOAL WIZARD -->
+<div class="overlay" id="onboardOverlay">
+  <div class="modal chat-modal" style="max-width:480px;">
+    <button class="close-x" id="closeOnboard">✕</button>
+    <div class="eyebrow" style="margin-bottom:8px;">// System Awakening</div>
+    <h3 style="margin-bottom:12px;">TELL THE SYSTEM YOUR GOALS</h3>
+    <div class="chat-log" id="chatLog"></div>
+    <div class="chat-input-row">
+      <input id="chatInput" type="text" placeholder="e.g. I want to get fitter and read more" maxlength="200" />
+      <button class="btn-primary chat-send" id="chatSendBtn">Send</button>
+    </div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn-ghost" id="skipOnboard">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="close-x" id="closeModal">✕</button>
+    <h3>REGISTER NEW QUEST</h3>
+    <div class="field">
+      <label>Quest Type</label>
+      <div class="recur-select" id="typeSelect">
+        <div class="recur-opt sel" data-val="standard">Standard</div>
+        <div class="recur-opt" data-val="misc">Miscellaneous</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Quest Title</label>
+      <input id="fTitle" type="text" placeholder="e.g. Drink 2L of water" maxlength="60" />
+    </div>
+    <div class="field" id="categoryField">
+      <label>Category</label>
+      <input id="fCategory" type="text" placeholder="e.g. Health, Study, Work" maxlength="20" />
+    </div>
+    <div class="field">
+      <label>Difficulty Rank</label>
+      <div class="rank-select" id="rankSelect"></div>
+    </div>
+    <div class="field">
+      <label>Quantity</label>
+      <input id="fQuantity" type="number" min="1" max="9999" value="1" />
+      <div class="field-hint">A number you define — reps, minutes, pages, anything you're tracking. This is what goes up when the quest is upgraded.</div>
+    </div>
+    <div class="field">
+      <label>Custom EXP (optional, overrides rank — every quest grants EXP)</label>
+      <input id="fXp" type="number" min="1" max="999" placeholder="auto" />
+    </div>
+    <div class="field" id="statRewardField">
+      <label>Stat Rewards (optional, on top of EXP)</label>
+      <div id="srList"></div>
+      <button type="button" class="sr-add-btn" id="srAddBtn">+ Add another stat</button>
+    </div>
+    <div class="field">
+      <label>Recurrence</label>
+      <div class="recur-select" id="recurSelect">
+        <div class="recur-opt sel" data-val="daily">Daily</div>
+        <div class="recur-opt" data-val="infinite">Infinite</div>
+        <div class="recur-opt" data-val="once">One-time</div>
+      </div>
+      <div class="field-hint" id="recurHint">Completed once per day.</div>
+    </div>
+    <div class="field">
+      <label>Reminder Time (optional)</label>
+      <input id="fReminder" type="time" />
+      <div class="field-hint">Notifies while the app is open or recently active on this device.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelBtn">Cancel</button>
+      <button class="btn-primary" id="saveBtn">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPGRADE MODAL -->
+<div class="overlay" id="upgradeOverlay">
+  <div class="modal">
+    <button class="close-x" id="closeUpgrade">✕</button>
+    <h3>QUEST UPGRADE AVAILABLE</h3>
+    <div class="field">
+      <label>Rank</label>
+      <div class="rank-arrow" id="upgradeRankPreview"></div>
+    </div>
+    <div class="field">
+      <label>Quantity</label>
+      <input id="upgradeQuantity" type="number" min="1" max="9999" />
+      <div class="field-hint">Raise this to reflect the harder tier — e.g. more reps, more minutes.</div>
+    </div>
+    <div class="field">
+      <label>Quest Name (optional)</label>
+      <input id="upgradeTitle" type="text" maxlength="60" />
+    </div>
+    <div class="field-hint" style="margin-bottom:10px;">Upgrading raises the quest's rank one tier, updates its EXP reward to match, and keeps its streak going.</div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelUpgrade">Cancel</button>
+      <button class="btn-primary" id="confirmUpgrade">Upgrade</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIG ============ */
+const RANKS = [
+  {key:'E', xp:10,  color:'#8a97ad'},
+  {key:'D', xp:20,  color:'#39e2a3'},
+  {key:'C', xp:35,  color:'#2dd4ff'},
+  {key:'B', xp:55,  color:'#9b6cf6'},
+  {key:'A', xp:80,  color:'#f5834f'},
+  {key:'S', xp:120, color:'#f5c451'},
+];
+const PLAYER_RANKS = [
+  {min:0,  key:'E', color:'#8a97ad', glow:'rgba(138,151,173,.25)'},
+  {min:10, key:'D', color:'#39e2a3', glow:'rgba(57,226,163,.25)'},
+  {min:20, key:'C', color:'#2dd4ff', glow:'rgba(45,212,255,.25)'},
+  {min:30, key:'B', color:'#9b6cf6', glow:'rgba(155,108,246,.25)'},
+  {min:40, key:'A', color:'#f5834f', glow:'rgba(245,131,79,.25)'},
+  {min:50, key:'S', color:'#f5c451', glow:'rgba(245,196,81,.3)'},
+];
+const STAT_DEFS = [
+  {key:'KNW', label:'Knowledge'},
+  {key:'STR', label:'Strength'},
+  {key:'CHM', label:'Charm'},
+  {key:'MEN', label:'Mentality'},
+  {key:'STA', label:'Stamina'},
+];
+// maps old attribute keys (pre-update saves) onto the closest new attribute,
+// so existing invested points aren't lost when the schema changes.
+const STAT_MIGRATION = { STR:'STR', VIT:'STA', AGI:'MEN', INT:'KNW', PER:'CHM' };
+const POINTS_PER_LEVEL = 3;
+const UPGRADE_STREAK_REQUIREMENT = 10;
+const STORAGE_KEY = 'system-state-v1';
+
+// Optional: point this at a local server (e.g. quest-local-server.js talking
+// to Ollama) to let the goal-setup chat use a real language model instead of
+// the local keyword matcher. Leave it as '' to stay fully offline — the
+// keyword matcher is always the automatic fallback either way, including if
+// this endpoint is unreachable when a message is sent.
+const AI_ENDPOINT = ''; // e.g. 'https://your-computer.your-tailnet.ts.net/generate-quests'
+
+// Starter-quest templates offered by the goal wizard, grouped by goal.
+// Each template becomes a real quest (with statRewards in the app's normal format)
+// when the user generates quests for that goal.
+const GOAL_LIBRARY = {
+  fitness: {
+    label:'Fitness', icon:'💪',
+    keywords:['fit','fitness','gym','workout','work out','exercise','run','running','muscle','strength','stronger','weight loss','lose weight','cardio','sport','sports'],
+    quests:[
+      {title:'Do a 15-minute workout', rank:'C', statKey:'STR', statAmt:2},
+      {title:'Take a 20-minute walk', rank:'D', statKey:'STA', statAmt:2},
+      {title:'Stretch for 5 minutes', rank:'E', statKey:'STA', statAmt:1}
+    ]
+  },
+  learning: {
+    label:'Learning', icon:'📚',
+    keywords:['learn','study','studying','read','reading','book','books','course','exam','school','university','college','knowledge','skill','language'],
+    quests:[
+      {title:'Read for 20 minutes', rank:'D', statKey:'KNW', statAmt:2},
+      {title:'Review notes from today', rank:'E', statKey:'KNW', statAmt:1},
+      {title:'Learn one new thing (article/video)', rank:'C', statKey:'KNW', statAmt:2}
+    ]
+  },
+  health: {
+    label:'Health & Wellness', icon:'🥗',
+    keywords:['health','healthy','diet','eat healthy','water','hydrate','sleep','rest','nutrition','wellness'],
+    quests:[
+      {title:'Drink 2L of water', rank:'E', statKey:'STA', statAmt:1},
+      {title:'Get 7+ hours of sleep', rank:'D', statKey:'STA', statAmt:2},
+      {title:'Eat a vegetable with a meal', rank:'D', statKey:'STA', statAmt:1}
+    ]
+  },
+  mindfulness: {
+    label:'Mindfulness', icon:'🧘',
+    keywords:['mindful','meditate','meditation','stress','stressed','anxiety','anxious','calm','journal','breathe','breathing','mental health','peace','overwhelmed'],
+    quests:[
+      {title:'Meditate for 10 minutes', rank:'C', statKey:'MEN', statAmt:2},
+      {title:'Write in a journal', rank:'D', statKey:'MEN', statAmt:2},
+      {title:'Take a few deep breaths before a stressful moment', rank:'E', statKey:'MEN', statAmt:1}
+    ]
+  },
+  productivity: {
+    label:'Productivity', icon:'🗂️',
+    keywords:['productive','productivity','focus','procrastinat','deadline','organized','organize','task','efficient','discipline','distracted'],
+    quests:[
+      {title:"Plan tomorrow's top 3 tasks", rank:'D', statKey:'MEN', statAmt:1},
+      {title:'Complete one 25-minute focus block', rank:'C', statKey:'MEN', statAmt:2},
+      {title:'Clear your inbox to zero', rank:'D', statKey:'KNW', statAmt:1}
+    ]
+  },
+  creativity: {
+    label:'Creativity', icon:'🎨',
+    keywords:['creative','creativity','draw','drawing','paint','painting','write','writing','music','art','hobby','craft'],
+    quests:[
+      {title:'Spend 15 minutes on a creative hobby', rank:'C', statKey:'CHM', statAmt:2},
+      {title:'Sketch, write, or brainstorm something new', rank:'D', statKey:'CHM', statAmt:1}
+    ]
+  },
+  social: {
+    label:'Relationships', icon:'👥',
+    keywords:['friend','friends','family','relationship','relationships','social','lonely','connect','reach out'],
+    quests:[
+      {title:'Reach out to a friend or family member', rank:'D', statKey:'CHM', statAmt:2},
+      {title:'Give someone a genuine compliment', rank:'E', statKey:'CHM', statAmt:1}
+    ]
+  },
+  finance: {
+    label:'Finance', icon:'💰',
+    keywords:['money','budget','finance','financial','save','saving','spend','spending','debt','invest','investing'],
+    quests:[
+      {title:"Log today's spending", rank:'D', statKey:'KNW', statAmt:1},
+      {title:'Review your budget for 5 minutes', rank:'D', statKey:'MEN', statAmt:1}
+    ]
+  }
+};
+
+/* ============ STATE ============ */
+let state = null;
+let currentTab = 'active';
+let selectedRank = 'E';
+let selectedRecur = 'daily';
+let selectedType = 'standard';
+let selectedStatReward = 'NONE';
+let chatMessages = [];
+let expandedQuestId = null;
+
+function defaultState(){
+  const stats = {};
+  STAT_DEFS.forEach(s => stats[s.key] = 10);
+  return {
+    name:'Player',
+    level:1,
+    xp:0,
+    statPoints:0,
+    stats,
+    quests:[],
+    lastActiveDate: todayStr(),
+    onboardingComplete:false
+  };
+}
+
+function todayStr(d=new Date()){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function yesterdayStr(){
+  const d = new Date(); d.setDate(d.getDate()-1); return todayStr(d);
+}
+function xpToNext(level){ return 100 + (level-1)*40; }
+function uid(){ return 'q'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function catColor(cat){
+  if(!cat) return '#5f7089';
+  let h=0; for(let i=0;i<cat.length;i++){ h = cat.charCodeAt(i) + ((h<<5)-h); }
+  const hue = Math.abs(h)%360;
+  return `hsl(${hue} 70% 65%)`;
+}
+
+/* ============ PERSISTENCE ============ */
+// Prefer Claude's built-in storage when this file is being previewed inside
+// a Claude.ai artifact panel. When it's running as a real installed app
+// (hosted PWA / opened directly in a browser), that API doesn't exist, so
+// fall back to the browser's own localStorage, which persists normally
+// on-device between launches.
+const hasClaudeStorage = typeof window.storage !== 'undefined'
+  && window.storage && typeof window.storage.get === 'function';
+
+async function storageGet(key){
+  if(hasClaudeStorage){
+    try{ return await window.storage.get(key, false); }
+    catch(e){ return null; }
+  }
+  try{
+    const v = localStorage.getItem(key);
+    return v !== null ? {key, value:v, shared:false} : null;
+  }catch(e){ return null; }
+}
+
+async function storageSet(key, value){
+  if(hasClaudeStorage){
+    try{ return await window.storage.set(key, value, false); }
+    catch(e){ return null; }
+  }
+  try{
+    localStorage.setItem(key, value);
+    return {key, value, shared:false};
+  }catch(e){ return null; }
+}
+
+function migrateStats(){
+  const oldStats = state.stats || {};
+  const validKeys = STAT_DEFS.map(s=>s.key);
+  const alreadyCurrent = validKeys.every(k => typeof oldStats[k] === 'number');
+  if(alreadyCurrent) return;
+
+  const newStats = {};
+  STAT_DEFS.forEach(s => newStats[s.key] = 10);
+  Object.keys(oldStats).forEach(oldKey=>{
+    const mapped = STAT_MIGRATION[oldKey];
+    if(mapped && typeof oldStats[oldKey] === 'number'){
+      newStats[mapped] = oldStats[oldKey];
+    }
+  });
+  state.stats = newStats;
+}
+
+async function loadState(){
+  try{
+    const res = await storageGet(STORAGE_KEY);
+    if(res && res.value){
+      state = JSON.parse(res.value);
+    } else {
+      state = defaultState();
+    }
+  }catch(e){
+    state = defaultState();
+  }
+  migrateStats();
+  runDailyReset();
+  await saveState();
+}
+
+async function saveState(){
+  try{
+    await storageSet(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){
+    console.error('Save failed', e);
+  }
+}
+
+/* ============ DAILY RESET / STREAK LOGIC ============ */
+function runDailyReset(){
+  const today = todayStr();
+  const yest = yesterdayStr();
+  if(state.lastActiveDate === today) return;
+
+  state.quests.forEach(q=>{
+    if(q.recurrence === 'daily'){
+      // if it wasn't completed yesterday (or today), and it existed, streak breaks
+      if(q.lastCompletedDate !== yest && q.lastCompletedDate !== today && q.streak > 0){
+        q.streak = 0;
+        q.penalized = true; // flagged so we can notify once rendered
+      }
+      q.completedToday = (q.lastCompletedDate === today);
+    } else if(q.recurrence === 'infinite'){
+      // a skipped day breaks both the day streak and the accumulated quest streak
+      if(q.lastCompletedDate !== yest && q.lastCompletedDate !== today && q.streak > 0){
+        q.streak = 0;
+        q.questStreak = 0;
+        q.penalized = true;
+      }
+      q.completionsToday = 0;
+    }
+  });
+  state.lastActiveDate = today;
+}
+
+/* ============ LEVEL / XP ============ */
+function addXp(amount){
+  state.xp += amount;
+  let leveledUp = false;
+  while(state.xp >= xpToNext(state.level)){
+    state.xp -= xpToNext(state.level);
+    state.level += 1;
+    state.statPoints += POINTS_PER_LEVEL;
+    leveledUp = true;
+  }
+  return leveledUp;
+}
+
+function currentPlayerRank(){
+  let r = PLAYER_RANKS[0];
+  for(const pr of PLAYER_RANKS){ if(state.level >= pr.min) r = pr; }
+  return r;
+}
+
+/* ============ CONSISTENCY ============ */
+function computeConsistency(){
+  return state.quests.reduce((sum,q)=>
+    sum + ((q.recurrence==='daily' || q.recurrence==='infinite') ? (q.streak||0) : 0), 0);
+}
+
+function lerp(a,b,t){ return a + (b-a)*t; }
+function lerpRGB(c1,c2,t){
+  return [
+    Math.round(lerp(c1[0],c2[0],t)),
+    Math.round(lerp(c1[1],c2[1],t)),
+    Math.round(lerp(c1[2],c2[2],t))
+  ];
+}
+
+// Cool blue at 0, shifting to warm gold, then to a hot ember red as the
+// combined streak total climbs — color warms and the glow intensifies together.
+function consistencyVisual(value){
+  const COOL = [45,212,255];
+  const WARM = [245,196,81];
+  const HOT  = [239,74,63];
+  const MID_POINT = 15;
+  const HOT_POINT = 40;
+
+  let rgb;
+  if(value <= MID_POINT){
+    rgb = lerpRGB(COOL, WARM, Math.min(1, value / MID_POINT));
+  } else {
+    rgb = lerpRGB(WARM, HOT, Math.min(1, (value - MID_POINT) / (HOT_POINT - MID_POINT)));
+  }
+  const t = Math.min(1, value / HOT_POINT);
+  const [r,g,b] = rgb;
+  const blur1 = 6 + t*22;
+  const blur2 = 14 + t*40;
+  const alpha1 = (0.55 + t*0.35).toFixed(2);
+  const alpha2 = (0.25 + t*0.35).toFixed(2);
+
+  return {
+    color: `rgb(${r},${g},${b})`,
+    textShadow: `0 0 ${blur1}px rgba(${r},${g},${b},${alpha1}), 0 0 ${blur2}px rgba(${r},${g},${b},${alpha2})`
+  };
+}
+
+function nextRankKey(key){
+  const idx = RANKS.findIndex(r=>r.key===key);
+  if(idx<0 || idx>=RANKS.length-1) return null;
+  return RANKS[idx+1].key;
+}
+// Infinite quests upgrade off their cumulative quest streak (total completions
+// since the last upgrade); regular daily quests still use the day-based streak.
+function relevantStreakFor(q){
+  return q.recurrence==='infinite' ? (q.questStreak||0) : (q.streak||0);
+}
+function eligibleForUpgrade(q){
+  const sinceLastUpgrade = relevantStreakFor(q) - (q.lastUpgradeStreak || 0);
+  return (q.recurrence==='daily' || q.recurrence==='infinite')
+    && sinceLastUpgrade >= UPGRADE_STREAK_REQUIREMENT
+    && nextRankKey(q.rank) !== null;
+}
+
+// Infinite quests get a same-day-only rank bump every single completion
+// (not the 10-completion threshold that governs the permanent upgrade below).
+// It's purely temporary — completionsToday resets at the daily reset, which
+// automatically reverts this back to the quest's permanent base rank.
+function infiniteBaseIdx(q){
+  return RANKS.findIndex(r=>r.key===q.rank);
+}
+function infiniteEffectiveRank(q){
+  const idx = Math.min(RANKS.length-1, infiniteBaseIdx(q) + (q.completionsToday||0));
+  return RANKS[idx];
+}
+
+/* ============ RENDER ============ */
+function render(){
+  document.getElementById('playerName').value = state.name;
+  document.getElementById('levelNum').textContent = state.level;
+  const need = xpToNext(state.level);
+  document.getElementById('xpText').textContent = `${state.xp} / ${need}`;
+  document.getElementById('xpFill').style.width = Math.min(100,(state.xp/need)*100)+'%';
+
+  const pr = currentPlayerRank();
+  const chip = document.getElementById('rankChip');
+  chip.textContent = 'RANK '+pr.key;
+  chip.style.setProperty('--rank-color', pr.color);
+  chip.style.setProperty('--rank-glow', pr.glow);
+
+  const consistency = computeConsistency();
+  const cEl = document.getElementById('consistencyNum');
+  cEl.textContent = consistency;
+  const vis = consistencyVisual(consistency);
+  cEl.style.color = vis.color;
+  cEl.style.textShadow = vis.textShadow;
+
+  // stats
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = '';
+  STAT_DEFS.forEach(s=>{
+    const div = document.createElement('div');
+    div.className='stat';
+    div.innerHTML = `
+      <div>
+        <div class="stat-name">${s.label}</div>
+        <div class="stat-val">${state.stats[s.key]}</div>
+      </div>
+      <button class="stat-plus" data-stat="${s.key}" ${state.statPoints<=0?'disabled':''}>+</button>
+    `;
+    grid.appendChild(div);
+  });
+  document.getElementById('pointsLeft').textContent = state.statPoints;
+
+  renderQuests();
+}
+
+function renderQuests(){
+  const list = document.getElementById('questList');
+  list.innerHTML = '';
+
+  const filtered = state.quests.filter(q=>{
+    if(q.recurrence==='infinite') return currentTab==='active'; // always active — never "completed"
+    const doneNow = q.recurrence==='daily' ? q.completedToday : q.completed;
+    return currentTab==='active' ? !doneNow : doneNow;
+  });
+
+  if(filtered.length===0){
+    list.innerHTML = `<div class="empty">${currentTab==='active' ? 'No active quests. Register one to begin.' : 'Nothing completed yet.'}</div>`;
+    return;
+  }
+
+  filtered.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+
+  filtered.forEach(q=>{
+    const isInfinite = q.recurrence==='infinite';
+    const baseRankDef = RANKS.find(r=>r.key===q.rank) || RANKS[0];
+    const effectiveRankDef = isInfinite ? infiniteEffectiveRank(q) : baseRankDef;
+    const isBoosted = isInfinite && effectiveRankDef.key !== baseRankDef.key;
+    const doneNow = isInfinite ? false : (q.recurrence==='daily' ? q.completedToday : q.completed);
+    const checkedNow = isInfinite ? (q.completionsToday||0) > 0 : doneNow;
+
+    let recurrenceMeta;
+    if(q.recurrence==='daily'){
+      recurrenceMeta = `<span class="streak">🔥 ${q.streak||0} day streak</span>`;
+    } else if(isInfinite){
+      recurrenceMeta = `<span class="streak">🔥 ${q.streak||0} day streak</span>` +
+        `<span class="quest-streak">⚡ ${q.questStreak||0} quest streak</span>` +
+        `<span class="tag" style="color:#5f7089">${q.completionsToday||0}× today</span>`;
+    } else {
+      recurrenceMeta = `<span class="tag" style="color:#5f7089">one-time</span>`;
+    }
+
+    const el = document.createElement('div');
+    const isExpanded = expandedQuestId === q.id;
+    el.className = 'quest'+(doneNow?' done':'')+(isExpanded?' expanded':'');
+    el.dataset.id = q.id;
+    el.innerHTML = `
+      <div class="check ${checkedNow?'checked':''}" data-id="${q.id}"></div>
+      <div class="q-body">
+        <div class="q-title">${escapeHtml(q.title)}</div>
+        <div class="q-meta">
+          <span class="rank-tag" style="color:${baseRankDef.color};border:1px solid ${baseRankDef.color}">${q.rank}</span>
+          ${isBoosted ? `<span class="temp-rank-tag">⚡ Temp ${effectiveRankDef.key}</span>` : ''}
+          ${q.type==='misc' ? `<span class="misc-tag">Misc</span>` : (q.category ? `<span class="tag" style="color:${catColor(q.category)}">${escapeHtml(q.category)}</span>` : '')}
+          ${q.quantity ? `<span class="qty-tag">×${q.quantity}</span>` : ''}
+          <span class="q-xp">+${effectiveRankDef.xp} EXP${isBoosted ? ' next' : ''}</span>
+          ${getRewards(q).map(r=>`<span class="sr-tag">+${r.amount} ${r.key}</span>`).join('')}
+          ${q.reminderTime ? `<span class="tag" style="color:#7dd3fc">⏰ ${q.reminderTime}</span>` : ''}
+          ${recurrenceMeta}
+        </div>
+        ${eligibleForUpgrade(q) ? `<button class="upgrade-btn" data-upgrade="${q.id}">⬆ Upgrade Available</button>` : ''}
+        ${isExpanded ? `
+          <div class="quest-expanded">
+            <div class="quest-expanded-note">Quests cannot be edited.</div>
+            <button class="q-remove-btn" data-remove="${q.id}">Remove Quest</button>
+          </div>
+        ` : ''}
+      </div>
+      ${isInfinite && (q.completionsToday||0) > 0 ? `<button class="q-undo" data-undo="${q.id}">−1</button>` : ''}
+    `;
+    list.appendChild(el);
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ============ SYSTEM NOTIFICATIONS ============ */
+function notify(eyebrow, main, kind=''){
+  const layer = document.getElementById('notifLayer');
+  const el = document.createElement('div');
+  el.className = 'sysnotif'+(kind?(' '+kind):'');
+  el.innerHTML = `<div class="n-eyebrow">${eyebrow}</div><div class="n-main">${main}</div>`;
+  layer.appendChild(el);
+  setTimeout(()=> el.remove(), 3200);
+}
+
+/* ============ ACTIONS ============ */
+function getRewards(q){
+  // supports both the current multi-reward array and quests saved
+  // before this update, which had a single statReward object.
+  if(Array.isArray(q.statRewards)) return q.statRewards;
+  if(q.statReward) return [q.statReward];
+  return [];
+}
+
+function applyStatReward(q, direction){
+  // direction: 1 to grant, -1 to revoke
+  getRewards(q).forEach(r=>{
+    if(!(r.key in state.stats)) return;
+    state.stats[r.key] = Math.max(0, state.stats[r.key] + direction*r.amount);
+  });
+}
+
+async function toggleQuest(id){
+  const q = state.quests.find(q=>q.id===id);
+  if(!q) return;
+  const today = todayStr();
+  const rewards = getRewards(q);
+  const rewardMsg = rewards.length ? ' · ' + rewards.map(r=>`+${r.amount} ${r.key}`).join(', ') : '';
+
+  if(q.recurrence==='daily'){
+    if(q.completedToday){
+      // undo
+      q.completedToday = false;
+      q.lastCompletedDate = null;
+      q.streak = Math.max(0, (q.streak||1)-1);
+      state.xp = Math.max(0, state.xp - q.xp);
+      applyStatReward(q, -1);
+    } else {
+      q.completedToday = true;
+      const wasYesterday = q.lastCompletedDate === yesterdayStr();
+      q.streak = wasYesterday ? (q.streak||0)+1 : 1;
+      q.lastCompletedDate = today;
+      const leveled = addXp(q.xp);
+      applyStatReward(q, 1);
+      notify('Quest Complete', `${q.title} · +${q.xp} EXP${rewardMsg}`, '');
+      if(leveled) announceLevelUp();
+    }
+  } else {
+    if(q.completed){
+      q.completed = false;
+      state.xp = Math.max(0, state.xp - q.xp);
+      applyStatReward(q, -1);
+    } else {
+      q.completed = true;
+      const leveled = addXp(q.xp);
+      applyStatReward(q, 1);
+      notify('Quest Complete', `${q.title} · +${q.xp} EXP${rewardMsg}`, '');
+      if(leveled) announceLevelUp();
+    }
+  }
+  await saveState();
+  render();
+}
+
+async function toggleInfiniteQuest(id, delta){
+  const q = state.quests.find(q=>q.id===id);
+  if(!q || q.recurrence !== 'infinite') return;
+  const today = todayStr();
+  const rewards = getRewards(q);
+  const rewardMsg = rewards.length ? ' · ' + rewards.map(r=>`+${r.amount} ${r.key}`).join(', ') : '';
+
+  if(delta > 0){
+    // this completion's reward is based on today's tally so far — each
+    // completion bumps the quest's effective rank one tier for the rest of
+    // the day, so the reward escalates as you repeat it (capped at S rank)
+    const rewardRank = infiniteEffectiveRank(q);
+    const wasFirstToday = (q.completionsToday||0) === 0;
+
+    q.completionsToday = (q.completionsToday||0) + 1;
+    q.questStreak = (q.questStreak||0) + 1;
+    if(wasFirstToday){
+      const wasYesterday = q.lastCompletedDate === yesterdayStr();
+      q.streak = wasYesterday ? (q.streak||0)+1 : 1;
+      q.lastCompletedDate = today;
+    }
+    const leveled = addXp(rewardRank.xp);
+    applyStatReward(q, 1);
+    const boostNote = rewardRank.key !== q.rank ? ` — Temp Rank ${rewardRank.key}` : '';
+    notify('Quest Complete', `${q.title} · +${rewardRank.xp} EXP${rewardMsg}${boostNote}`, '');
+    if(leveled) announceLevelUp();
+  } else {
+    if((q.completionsToday||0) <= 0) return; // nothing to undo
+    // reverse the exact reward the most recent completion actually granted
+    const lastIdx = Math.min(RANKS.length-1, infiniteBaseIdx(q) + (q.completionsToday - 1));
+    const lastRank = RANKS[lastIdx];
+    q.completionsToday -= 1;
+    q.questStreak = Math.max(0, (q.questStreak||0) - 1);
+    state.xp = Math.max(0, state.xp - lastRank.xp);
+    applyStatReward(q, -1);
+    if(q.completionsToday === 0){
+      // this was the day's only completion — revert the day-streak too
+      q.streak = Math.max(0, (q.streak||1) - 1);
+      q.lastCompletedDate = null;
+    }
+  }
+  await saveState();
+  render();
+}
+
+function announceLevelUp(){
+  setTimeout(()=> notify('Level Up', `You have reached Level ${state.level}. +${POINTS_PER_LEVEL} stat points.`, 'levelup'), 350);
+}
+
+async function deleteQuest(id){
+  state.quests = state.quests.filter(q=>q.id!==id);
+  if(expandedQuestId === id) expandedQuestId = null;
+  await saveState();
+  render();
+}
+
+async function allocateStat(key){
+  if(state.statPoints<=0) return;
+  state.stats[key] += 1;
+  state.statPoints -= 1;
+  await saveState();
+  render();
+}
+
+/* ============ MODAL ============ */
+function buildRankSelector(){
+  const box = document.getElementById('rankSelect');
+  box.innerHTML='';
+  RANKS.forEach(r=>{
+    const el = document.createElement('div');
+    el.className = 'rank-opt'+(r.key===selectedRank?' sel':'');
+    el.style.setProperty('--sel-color', r.color);
+    el.style.setProperty('--sel-glow', r.color+'22');
+    el.textContent = r.key;
+    el.dataset.rank = r.key;
+    box.appendChild(el);
+  });
+}
+
+function buildStatRewardSelector(){
+  document.getElementById('srList').innerHTML = '';
+  addStatRewardRow();
+}
+
+function statOptionsHtml(selectedKey){
+  return '<option value="NONE">None</option>' +
+    STAT_DEFS.map(s => `<option value="${s.key}" ${s.key===selectedKey?'selected':''}>${s.label}</option>`).join('');
+}
+
+function addStatRewardRow(){
+  const list = document.getElementById('srList');
+  if(list.children.length >= STAT_DEFS.length) return; // one row per attribute, max
+  const row = document.createElement('div');
+  row.className = 'sr-row';
+  row.innerHTML = `
+    <select class="sr-key">${statOptionsHtml('NONE')}</select>
+    <input class="sr-amt" type="number" min="1" max="20" value="1" />
+    <button type="button" class="sr-remove">✕</button>
+  `;
+  list.appendChild(row);
+  refreshAddButtonState();
+}
+
+function refreshAddButtonState(){
+  const list = document.getElementById('srList');
+  document.getElementById('srAddBtn').disabled = list.children.length >= STAT_DEFS.length;
+}
+
+function readStatRewards(){
+  const rows = Array.from(document.querySelectorAll('#srList .sr-row'));
+  const byKey = {};
+  rows.forEach(row=>{
+    const key = row.querySelector('.sr-key').value;
+    if(key === 'NONE') return;
+    const amt = Math.max(1, Math.min(20, parseInt(row.querySelector('.sr-amt').value,10) || 1));
+    byKey[key] = (byKey[key] || 0) + amt; // merge if the same stat was picked twice
+  });
+  return Object.keys(byKey).map(key => ({key, amount: byKey[key]}));
+}
+
+function applyTypeVisibility(){
+  const isMisc = selectedType==='misc';
+  document.getElementById('categoryField').classList.toggle('disabled', isMisc);
+  document.getElementById('statRewardField').classList.toggle('disabled', isMisc);
+  if(isMisc){
+    document.getElementById('fCategory').value = 'Misc';
+  } else if(document.getElementById('fCategory').value === 'Misc'){
+    document.getElementById('fCategory').value = '';
+  }
+}
+
+function updateRecurHint(){
+  const hints = {
+    daily: 'Completed once per day.',
+    infinite: 'Can be completed multiple times a day — each completion still earns EXP and rewards.',
+    once: 'A single quest, completed once and done.'
+  };
+  document.getElementById('recurHint').textContent = hints[selectedRecur] || '';
+}
+
+function openModal(){
+  document.getElementById('fTitle').value='';
+  document.getElementById('fCategory').value='';
+  document.getElementById('fXp').value='';
+  document.getElementById('fReminder').value='';
+  document.getElementById('fQuantity').value='1';
+  selectedRank='E'; selectedRecur='daily'; selectedType='standard';
+  buildRankSelector();
+  buildStatRewardSelector();
+  document.querySelectorAll('#recurSelect .recur-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val==='daily'));
+  document.querySelectorAll('#typeSelect .recur-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val==='standard'));
+  updateRecurHint();
+  applyTypeVisibility();
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('fTitle').focus();
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+async function saveQuest(){
+  const title = document.getElementById('fTitle').value.trim();
+  if(!title){ document.getElementById('fTitle').focus(); return; }
+  const isMisc = selectedType==='misc';
+  const category = isMisc ? 'Misc' : document.getElementById('fCategory').value.trim();
+  const customXp = document.getElementById('fXp').value;
+  const rankDef = RANKS.find(r=>r.key===selectedRank);
+  const xp = customXp ? Math.max(1, Math.min(999, parseInt(customXp,10))) : rankDef.xp; // every quest grants EXP
+
+  const statRewards = isMisc ? [] : readStatRewards();
+  const reminderTime = document.getElementById('fReminder').value || null;
+  const quantity = Math.max(1, Math.min(9999, parseInt(document.getElementById('fQuantity').value,10) || 1));
+
+  state.quests.push({
+    id: uid(),
+    title, category,
+    type: selectedType,
+    rank: selectedRank,
+    xp,
+    quantity,
+    statRewards,
+    reminderTime,
+    lastNotifiedDate:null,
+    recurrence: selectedRecur,
+    completed:false,
+    completedToday:false,
+    lastCompletedDate:null,
+    streak:0,
+    lastUpgradeStreak:0,
+    completionsToday:0,
+    questStreak:0,
+    createdAt: Date.now()
+  });
+  await saveState();
+  closeModal();
+  currentTab='active';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab==='active'));
+  render();
+}
+
+/* ============ GOAL WIZARD (keyword-parsed chat) ============ */
+// This is a lightweight local keyword matcher, not a real language model —
+// there's no backend or API key in a static site to call one. It scans the
+// sentence for words tied to each goal category below, plus a small pattern
+// for "learn/study/practice X" to personalize one quest to what you typed.
+function resetChat(){
+  chatMessages = [{role:'system', text:"Tell me what you're working on — goals, habits, anything you want to build. I'll turn it into starter quests."}];
+  renderChatLog();
+}
+
+function renderChatLog(){
+  const log = document.getElementById('chatLog');
+  log.innerHTML = chatMessages.map(m=>{
+    const quests = m.questTitles && m.questTitles.length
+      ? `<div class="cm-quests">${m.questTitles.map(t=>'• '+escapeHtml(t)).join('<br>')}</div>`
+      : '';
+    return `<div class="chat-msg ${m.role}">${escapeHtml(m.text)}${quests}</div>`;
+  }).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function matchGoalsFromText(text){
+  const lower = text.toLowerCase();
+  return Object.keys(GOAL_LIBRARY).filter(key =>
+    GOAL_LIBRARY[key].keywords.some(kw => lower.includes(kw))
+  );
+}
+
+function extractCustomLearningQuest(text){
+  const m = text.match(/\b(?:learn|study|practice)\s+([a-zA-Z][a-zA-Z\s]{1,28}?)(?:[.,!?]|$| and | to | for | so | because)/i);
+  if(!m) return null;
+  const topic = m[1].trim().replace(/\s+/g,' ');
+  if(topic.length < 2) return null;
+  const titleTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
+  return {title:`Practice ${titleTopic}`, rank:'D', category:'Learning', statKey:'KNW', statAmt:2, recurrence:'daily'};
+}
+
+function buildQuestFromTemplate(tpl, categoryLabel, createdAt){
+  return {
+    id: uid(),
+    title: tpl.title,
+    category: categoryLabel,
+    type: 'standard',
+    rank: tpl.rank,
+    xp: RANKS.find(r=>r.key===tpl.rank).xp,
+    quantity: 1,
+    statRewards: tpl.statKey ? [{key:tpl.statKey, amount:tpl.statAmt}] : [],
+    reminderTime: null,
+    lastNotifiedDate: null,
+    recurrence: tpl.recurrence || 'daily',
+    completed:false,
+    completedToday:false,
+    lastCompletedDate:null,
+    streak:0,
+    lastUpgradeStreak:0,
+    completionsToday:0,
+    questStreak:0,
+    createdAt
+  };
+}
+
+function openOnboardModal(){
+  document.getElementById('onboardOverlay').classList.add('show');
+  document.getElementById('chatInput').focus();
+}
+function closeOnboardModal(){
+  document.getElementById('onboardOverlay').classList.remove('show');
+}
+
+// Calls your configured local server once per message. Treats the model's
+// output as untrusted input, same as any API response — every field is
+// validated against known ranks/stats and clamped/truncated before use.
+async function fetchAIQuests(text){
+  const res = await fetch(AI_ENDPOINT, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({text})
+  });
+  if(!res.ok) throw new Error('AI endpoint returned ' + res.status);
+  const data = await res.json();
+  if(!data || !Array.isArray(data.quests)) throw new Error('Unexpected response shape');
+
+  const validRanks = RANKS.map(r=>r.key);
+  const validStats = STAT_DEFS.map(s=>s.key);
+
+  const cleaned = data.quests.map(q=>{
+    const title = String(q.title || '').slice(0,60).trim();
+    if(!title) return null;
+    const rank = validRanks.includes(q.rank) ? q.rank : 'D';
+    const statKey = validStats.includes(q.statKey) ? q.statKey : null;
+    const statAmt = statKey ? Math.max(1, Math.min(20, parseInt(q.statAmt,10) || 1)) : 0;
+    const recurrence = q.recurrence === 'once' ? 'once' : 'daily';
+    const category = String(q.category || 'Misc').slice(0,20).trim() || 'Misc';
+    return {title, rank, statKey, statAmt, recurrence, category};
+  }).filter(Boolean).slice(0,8);
+
+  if(cleaned.length === 0) throw new Error('No usable quests in response');
+  return cleaned;
+}
+
+async function handleChatSend(){
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const text = input.value.trim();
+  if(!text) return;
+  chatMessages.push({role:'user', text});
+  input.value = '';
+  renderChatLog();
+
+  let templates = null;
+  let usedAI = false;
+
+  if(AI_ENDPOINT){
+    sendBtn.disabled = true;
+    chatMessages.push({role:'system', text:'Consulting the System…', transient:true});
+    renderChatLog();
+    try{
+      templates = await fetchAIQuests(text);
+      usedAI = true;
+    }catch(e){
+      templates = null; // falls through to the local matcher below
+    }
+    chatMessages = chatMessages.filter(m => !m.transient);
+    sendBtn.disabled = false;
+  }
+
+  let addedTitles = [];
+  let t = Date.now();
+
+  if(templates){
+    templates.forEach(tpl=>{
+      state.quests.push(buildQuestFromTemplate(tpl, tpl.category, t++));
+      addedTitles.push(tpl.title);
+    });
+  } else {
+    // local keyword matcher — either AI wasn't configured, or it failed
+    const matched = matchGoalsFromText(text);
+    const custom = extractCustomLearningQuest(text);
+
+    if(matched.length === 0 && !custom){
+      const note = AI_ENDPOINT
+        ? "The local server is unreachable right now, and I couldn't pick out a clear goal locally either — try mentioning something like fitness, reading, sleep, focus, creativity, relationships, or money."
+        : "I couldn't pick out a clear goal from that — try mentioning something like fitness, reading, sleep, focus, creativity, relationships, or money. You can always add a quest manually too.";
+      chatMessages.push({role:'system', text: note});
+      renderChatLog();
+      return;
+    }
+
+    matched.forEach(key=>{
+      GOAL_LIBRARY[key].quests.forEach(tpl=>{
+        state.quests.push(buildQuestFromTemplate(tpl, GOAL_LIBRARY[key].label, t++));
+        addedTitles.push(tpl.title);
+      });
+    });
+    if(custom){
+      state.quests.push(buildQuestFromTemplate(custom, custom.category, t++));
+      addedTitles.push(custom.title);
+    }
+  }
+
+  state.onboardingComplete = true;
+  await saveState();
+
+  const prefix = usedAI ? '' : (AI_ENDPOINT ? 'The local server is unreachable right now — using offline suggestions instead. ' : '');
+  chatMessages.push({
+    role:'system',
+    text: `${prefix}Added ${addedTitles.length} quest${addedTitles.length===1?'':'s'}:`,
+    questTitles: addedTitles
+  });
+  renderChatLog();
+
+  currentTab = 'active';
+  document.querySelectorAll('.tab').forEach(tb=>tb.classList.toggle('active', tb.dataset.tab==='active'));
+  render();
+}
+
+/* ============ QUEST UPGRADE ============ */
+let upgradeQuestId = null;
+
+function openUpgradeModal(id){
+  const q = state.quests.find(q=>q.id===id);
+  if(!q) return;
+  const next = nextRankKey(q.rank);
+  if(!next) return;
+  upgradeQuestId = id;
+  const curDef = RANKS.find(r=>r.key===q.rank);
+  const nextDef = RANKS.find(r=>r.key===next);
+  document.getElementById('upgradeRankPreview').innerHTML =
+    `<span style="color:${curDef.color}">${q.rank}</span><span style="color:var(--text-dim);font-size:16px;">→</span><span style="color:${nextDef.color}">${next}</span>`;
+  document.getElementById('upgradeQuantity').value = q.quantity || 1;
+  document.getElementById('upgradeTitle').value = q.title;
+  document.getElementById('upgradeOverlay').classList.add('show');
+}
+
+function closeUpgradeModal(){
+  document.getElementById('upgradeOverlay').classList.remove('show');
+  upgradeQuestId = null;
+}
+
+async function confirmUpgradeQuest(){
+  const q = state.quests.find(q=>q.id===upgradeQuestId);
+  if(!q){ closeUpgradeModal(); return; }
+  const next = nextRankKey(q.rank);
+  if(!next){ closeUpgradeModal(); return; }
+  const newTitle = document.getElementById('upgradeTitle').value.trim();
+  const newQuantity = Math.max(1, Math.min(9999, parseInt(document.getElementById('upgradeQuantity').value,10) || (q.quantity || 1)));
+  const nextDef = RANKS.find(r=>r.key===next);
+
+  q.rank = next;
+  q.xp = nextDef.xp;
+  q.quantity = newQuantity;
+  if(newTitle) q.title = newTitle;
+  q.lastUpgradeStreak = relevantStreakFor(q);
+
+  await saveState();
+  closeUpgradeModal();
+  notify('Quest Upgraded', `${q.title} is now Rank ${next}`, 'levelup');
+  render();
+}
+
+/* ============ EVENTS ============ */
+document.getElementById('openModalBtn').addEventListener('click', openModal);
+document.getElementById('closeModal').addEventListener('click', closeModal);
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+document.getElementById('saveBtn').addEventListener('click', saveQuest);
+
+document.getElementById('closeUpgrade').addEventListener('click', closeUpgradeModal);
+document.getElementById('cancelUpgrade').addEventListener('click', closeUpgradeModal);
+document.getElementById('upgradeOverlay').addEventListener('click', e=>{ if(e.target.id==='upgradeOverlay') closeUpgradeModal(); });
+document.getElementById('confirmUpgrade').addEventListener('click', confirmUpgradeQuest);
+
+document.getElementById('openOnboardBtn').addEventListener('click', ()=>{
+  resetChat();
+  openOnboardModal();
+});
+document.getElementById('closeOnboard').addEventListener('click', closeOnboardModal);
+document.getElementById('skipOnboard').addEventListener('click', async ()=>{
+  state.onboardingComplete = true;
+  await saveState();
+  closeOnboardModal();
+});
+document.getElementById('onboardOverlay').addEventListener('click', e=>{ if(e.target.id==='onboardOverlay') closeOnboardModal(); });
+document.getElementById('chatSendBtn').addEventListener('click', handleChatSend);
+document.getElementById('chatInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){ e.preventDefault(); handleChatSend(); }
+});
+
+document.getElementById('rankSelect').addEventListener('click', e=>{
+  const opt = e.target.closest('.rank-opt');
+  if(!opt) return;
+  selectedRank = opt.dataset.rank;
+  buildRankSelector();
+});
+document.getElementById('recurSelect').addEventListener('click', e=>{
+  const opt = e.target.closest('.recur-opt');
+  if(!opt) return;
+  selectedRecur = opt.dataset.val;
+  document.querySelectorAll('#recurSelect .recur-opt').forEach(o=>o.classList.toggle('sel', o===opt));
+  updateRecurHint();
+});
+document.getElementById('typeSelect').addEventListener('click', e=>{
+  const opt = e.target.closest('.recur-opt');
+  if(!opt) return;
+  selectedType = opt.dataset.val;
+  document.querySelectorAll('#typeSelect .recur-opt').forEach(o=>o.classList.toggle('sel', o===opt));
+  applyTypeVisibility();
+});
+document.getElementById('srAddBtn').addEventListener('click', addStatRewardRow);
+document.getElementById('srList').addEventListener('click', e=>{
+  const btn = e.target.closest('.sr-remove');
+  if(!btn) return;
+  const list = document.getElementById('srList');
+  if(list.children.length <= 1){
+    // keep at least one row; just reset it instead of removing
+    btn.closest('.sr-row').querySelector('.sr-key').value = 'NONE';
+    btn.closest('.sr-row').querySelector('.sr-amt').value = '1';
+    return;
+  }
+  btn.closest('.sr-row').remove();
+  refreshAddButtonState();
+});
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    currentTab = t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+    renderQuests();
+  });
+});
+
+document.getElementById('questList').addEventListener('click', e=>{
+  const check = e.target.closest('.check');
+  if(check){
+    const qid = check.dataset.id;
+    const q = state.quests.find(q=>q.id===qid);
+    if(q && q.recurrence==='infinite'){ toggleInfiniteQuest(qid, 1); }
+    else { toggleQuest(qid); }
+    return;
+  }
+  const undo = e.target.closest('.q-undo');
+  if(undo){ toggleInfiniteQuest(undo.dataset.undo, -1); return; }
+  const upg = e.target.closest('.upgrade-btn');
+  if(upg){ openUpgradeModal(upg.dataset.upgrade); return; }
+  const removeBtn = e.target.closest('.q-remove-btn');
+  if(removeBtn){ deleteQuest(removeBtn.dataset.remove); return; }
+  const tile = e.target.closest('.quest');
+  if(tile){
+    const qid = tile.dataset.id;
+    expandedQuestId = (expandedQuestId === qid) ? null : qid;
+    renderQuests();
+  }
+});
+
+document.getElementById('statsGrid').addEventListener('click', e=>{
+  const btn = e.target.closest('.stat-plus');
+  if(btn && !btn.disabled) allocateStat(btn.dataset.stat);
+});
+
+let nameTimer;
+document.getElementById('playerName').addEventListener('input', e=>{
+  state.name = e.target.value;
+  clearTimeout(nameTimer);
+  nameTimer = setTimeout(saveState, 400);
+});
+
+document.getElementById('notifBtn').addEventListener('click', requestNotifPermission);
+
+/* ============ REMINDER NOTIFICATIONS ============ */
+// These are local, on-device notifications: they can only fire while this
+// app is open or has recently been active in the background. There is no
+// server involved, so they are not guaranteed to fire if the app has been
+// fully closed for a long time — that would need a real push server.
+function supportsNotifications(){ return 'Notification' in window; }
+
+function updateNotifButton(){
+  const btn = document.getElementById('notifBtn');
+  const txt = document.getElementById('rbText');
+  if(!supportsNotifications()){
+    btn.textContent = 'Unsupported';
+    btn.disabled = true;
+    btn.className = 'notif-btn off';
+    txt.textContent = "This browser doesn't support notifications.";
+    return;
+  }
+  const p = Notification.permission;
+  if(p==='granted'){
+    btn.textContent = '🔔 Reminders On';
+    btn.className = 'notif-btn on';
+    btn.disabled = true;
+    txt.textContent = "You'll be notified when a quest's reminder time hits, while the app is open or recently active.";
+  } else if(p==='denied'){
+    btn.textContent = '🔕 Blocked';
+    btn.className = 'notif-btn off';
+    btn.disabled = true;
+    txt.textContent = 'Notifications are blocked in your browser settings for this site.';
+  } else {
+    btn.textContent = '🔔 Enable Reminders';
+    btn.className = 'notif-btn';
+    btn.disabled = false;
+    txt.textContent = "Get notified when a quest's reminder time hits, while this app is open.";
+  }
+}
+
+async function requestNotifPermission(){
+  if(!supportsNotifications()) return;
+  try{
+    await Notification.requestPermission();
+  }catch(e){ /* ignore */ }
+  updateNotifButton();
+}
+
+function fireQuestNotification(q){
+  const rewards = getRewards(q);
+  const rewardText = rewards.length ? ' · ' + rewards.map(r=>`+${r.amount} ${r.key}`).join(', ') : '';
+  const title = 'Quest Due: ' + q.title;
+  const options = {
+    body: `+${q.xp} EXP${rewardText}`,
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    tag: 'quest-'+q.id
+  };
+  if(navigator.serviceWorker && navigator.serviceWorker.ready){
+    navigator.serviceWorker.ready.then(reg=>{
+      reg.showNotification(title, options);
+    }).catch(()=>{
+      try{ new Notification(title, options); }catch(e){}
+    });
+  } else {
+    try{ new Notification(title, options); }catch(e){}
+  }
+}
+
+function checkReminders(){
+  if(!state || !supportsNotifications() || Notification.permission!=='granted') return;
+  const now = new Date();
+  const nowHM = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const today = todayStr();
+  let changed = false;
+  state.quests.forEach(q=>{
+    if(!q.reminderTime) return;
+    const doneNow = q.recurrence==='daily' ? q.completedToday : q.completed;
+    if(doneNow) return;
+    if(q.reminderTime === nowHM && q.lastNotifiedDate !== today){
+      fireQuestNotification(q);
+      q.lastNotifiedDate = today;
+      changed = true;
+    }
+  });
+  if(changed) saveState();
+}
+
+/* ============ PWA SERVICE WORKER ============ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline caching unavailable, app still works */ });
+  });
+}
+
+/* ============ INIT ============ */
+(async function init(){
+  await loadState();
+  render();
+  updateNotifButton();
+  checkReminders();
+  setInterval(checkReminders, 20000);
+
+  // first-time users with no quests yet get the goal wizard automatically
+  if(!state.onboardingComplete && state.quests.length === 0){
+    resetChat();
+    setTimeout(openOnboardModal, 400);
+  }
+
+  // notify about any streak penalties discovered during daily reset
+  const penalized = state.quests.filter(q=>q.penalized);
+  if(penalized.length){
+    penalized.forEach(q=> q.penalized=false);
+    await saveState();
+    setTimeout(()=> notify('Penalty', `Streak reset: ${penalized.map(q=>q.title).join(', ')}`, 'penalty'), 300);
+  }
+})();
+</script>
+</body>
+</html>
