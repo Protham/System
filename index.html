@@ -293,8 +293,19 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 }
 .overlay.show{display:flex;}
 .modal{
-  width:100%;max-width:420px;background:var(--bg-panel2);border:1px solid var(--blue);
-  padding:24px;position:relative;box-shadow:0 0 40px rgba(45,212,255,.15);
+  width:100%;
+  max-width:420px;
+  max-height:calc(100dvh - 32px);
+  overflow-y:auto;
+
+  background:var(--bg-panel2);
+  border:1px solid var(--blue);
+  padding:24px;
+  position:relative;
+  box-shadow:0 0 40px rgba(45,212,255,.15);
+
+  -webkit-overflow-scrolling:touch;
+}
 }
 .modal h3{margin:0 0 18px;font-size:14px;letter-spacing:.2em;color:var(--blue);}
 .field{margin-bottom:14px;}
