@@ -341,46 +341,47 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
   transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
 }
 .penalty-toggle:hover{border-color:rgba(239,74,95,.55);}
+.penalty-toggle{
+  position:relative;
+}
 .penalty-toggle input{
-  appearance:none;
-  -webkit-appearance:none;
-
+  position:absolute;
+  opacity:0;
+  width:1px;
+  height:1px;
+  pointer-events:none;
+}
+.penalty-checkbox{
   flex:0 0 20px;
   width:20px;
   height:20px;
-
-  margin:0;
-
+  box-sizing:border-box;
   border:1px solid var(--danger);
   border-radius:0;
-
   background:transparent;
-
   box-shadow:0 0 4px rgba(239,74,95,.18);
-
-  cursor:pointer;
-  position:relative;
-
   transition:
     background .15s ease,
     box-shadow .15s ease,
     border-color .15s ease,
     transform .1s ease;
 }
-
-.penalty-toggle input:checked{
+.penalty-toggle input:checked + .penalty-checkbox{
   background:var(--danger);
   border-color:var(--danger);
-
   box-shadow:
     0 0 5px rgba(239,74,95,.8),
     0 0 14px rgba(239,74,95,.5),
     inset 0 0 5px rgba(255,255,255,.15);
 }
-
-.penalty-toggle input:active{
+.penalty-toggle input:active + .penalty-checkbox{
   transform:scale(.92);
 }
+.penalty-toggle:focus-within{
+  border-color:rgba(239,74,95,.65);
+  box-shadow:0 0 10px rgba(239,74,95,.08);
+}
+
 .penalty-toggle-text{min-width:0;display:flex;flex-direction:column;gap:3px;}
 .penalty-toggle-title{
   font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;
@@ -653,6 +654,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
       <label>Missed Quest Penalty (optional)</label>
       <label class="penalty-toggle">
         <input id="fPenaltyEnabled" type="checkbox" />
+        <span class="penalty-checkbox" aria-hidden="true"></span>
         <span class="penalty-toggle-text">
           <span class="penalty-toggle-title">Enable missed-day penalty</span>
           <span class="penalty-toggle-hint">Lose attribute points if this quest is missed for the selected number of days.</span>
