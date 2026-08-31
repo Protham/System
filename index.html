@@ -293,19 +293,10 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 }
 .overlay.show{display:flex;}
 .modal{
-  width:100%;
-  max-width:420px;
-  max-height:calc(100dvh - 32px);
-  overflow-y:auto;
-
-  background:var(--bg-panel2);
-  border:1px solid var(--blue);
-  padding:24px;
-  position:relative;
-  box-shadow:0 0 40px rgba(45,212,255,.15);
-
+  width:100%;max-width:420px;max-height:calc(100dvh - 32px);overflow-y:auto;
+  background:var(--bg-panel2);border:1px solid var(--blue);
+  padding:24px;position:relative;box-shadow:0 0 40px rgba(45,212,255,.15);
   -webkit-overflow-scrolling:touch;
-}
 }
 .modal h3{margin:0 0 18px;font-size:14px;letter-spacing:.2em;color:var(--blue);}
 .field{margin-bottom:14px;}
@@ -337,6 +328,14 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 }
 .close-x{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;}
 .field.disabled{opacity:.35;pointer-events:none;}
+.penalty-toggle{display:flex;align-items:center;gap:10px;background:var(--bg-inset);border:1px solid rgba(239,74,95,.22);padding:10px 12px;cursor:pointer;}
+.penalty-toggle input{width:16px;height:16px;accent-color:var(--danger);cursor:pointer;}
+.penalty-toggle span{font-size:12px;color:var(--text);letter-spacing:.04em;}
+.penalty-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:8px;}
+.penalty-grid select,.penalty-grid input{width:100%;background:var(--bg-inset);border:1px solid var(--text-dimmer);color:var(--text);padding:9px 10px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;}
+.penalty-grid select:focus,.penalty-grid input:focus{border-color:var(--danger);}
+.penalty-status{margin-top:6px;font-size:11px;color:var(--danger);letter-spacing:.02em;}
+.penalty-tag{font-size:10px;letter-spacing:.06em;padding:2px 7px;border:1px solid var(--danger);color:var(--danger);background:rgba(239,74,95,.08);}
 .sr-tag{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;color:var(--violet);border:1px solid var(--violet);background:var(--violet-soft);}
 .misc-tag{font-size:10px;letter-spacing:.08em;padding:2px 8px;border:1px solid var(--text-dimmer);color:var(--text-dim);text-transform:uppercase;}
 .sr-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
@@ -405,6 +404,9 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
   50%{box-shadow:0 0 12px rgba(245,196,81,.55);}
 }
 .rank-arrow{font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;letter-spacing:.05em;display:flex;align-items:center;gap:12px;}
+.temp-upgrade-note{font-size:13px;line-height:1.5;color:var(--text-dim);}
+.temp-upgrade-note b{color:var(--text);}
+.temp-upgrade-choice{font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:.08em;color:var(--blue);margin-top:10px;text-transform:uppercase;}
 
 @media (max-width:520px){
   .hero-title{font-size:22px;}
@@ -555,6 +557,27 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
       </div>
       <div class="field-hint" id="recurHint">Completed once per day.</div>
     </div>
+    <div class="field" id="penaltyField">
+      <label>Missed Quest Penalty (optional)</label>
+      <label class="penalty-toggle">
+        <input id="fPenaltyEnabled" type="checkbox" />
+        <span>Enable attribute penalty when this quest is missed</span>
+      </label>
+      <div class="penalty-grid" id="penaltyOptions" style="margin-top:8px;">
+        <select id="fPenaltyStat">
+          <option value="KNW">Knowledge</option>
+          <option value="STR">Strength</option>
+          <option value="CHM">Charm</option>
+          <option value="MEN">Mentality</option>
+          <option value="STA">Stamina</option>
+        </select>
+        <input id="fPenaltyAmount" type="number" min="1" max="20" value="1" placeholder="Points" />
+      </div>
+      <div class="penalty-grid" id="penaltyDaysRow" style="margin-top:8px;grid-template-columns:1fr;">
+        <input id="fPenaltyDays" type="number" min="1" max="365" value="3" placeholder="Missed days" />
+      </div>
+      <div class="field-hint">After this many consecutive missed days, the selected attribute loses the chosen points once. Completing the quest resets the penalty counter, so another missed streak can trigger it again.</div>
+    </div>
     <div class="field">
       <label>Reminder Time (optional)</label>
       <input id="fReminder" type="time" />
@@ -563,6 +586,23 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
     <div class="modal-actions">
       <button class="btn-ghost" id="cancelBtn">Cancel</button>
       <button class="btn-primary" id="saveBtn">Register</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPTIONAL TEMPORARY RANK MODAL -->
+<div class="overlay" id="tempUpgradeOverlay">
+  <div class="modal">
+    <button class="close-x" id="closeTempUpgrade">✕</button>
+    <div class="eyebrow" style="margin-bottom:8px;">// Optional Challenge</div>
+    <h3 id="tempUpgradeTitle">UPGRADE FOR TODAY?</h3>
+    <div class="field">
+      <div class="temp-upgrade-note" id="tempUpgradeText"></div>
+      <div class="temp-upgrade-choice" id="tempUpgradeChoice"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="declineTempUpgrade">Keep Current</button>
+      <button class="btn-primary" id="acceptTempUpgrade">Upgrade</button>
     </div>
   </div>
 </div>
@@ -808,6 +848,24 @@ async function loadState(){
     state = defaultState();
   }
   migrateStats();
+  // Data schema version. Existing user data is preserved exactly; migration
+  // only adds fields that did not exist before these optional features.
+  const previousDataVersion = Number(state.dataVersion) || 1;
+  state.quests = Array.isArray(state.quests) ? state.quests : [];
+  // Backfill fields introduced by the optional daily temporary-rank system
+  // and optional missed-quest penalties. Never overwrite existing values.
+  state.quests.forEach(q=>{
+    if(typeof q.tempUpgradeLevel !== 'number') q.tempUpgradeLevel = 0;
+    if(!Array.isArray(q.completionRanksToday)) q.completionRanksToday = [];
+    if(typeof q.penaltyEnabled !== 'boolean') q.penaltyEnabled = false;
+    if(!STAT_DEFS.some(st=>st.key===q.penaltyStat)) q.penaltyStat = 'STR';
+    if(typeof q.penaltyAmount !== 'number') q.penaltyAmount = 1;
+    if(typeof q.penaltyAfterDays !== 'number') q.penaltyAfterDays = 3;
+    if(typeof q.penaltyTriggered !== 'boolean') q.penaltyTriggered = false;
+  });
+  // Mark the current schema only after the non-destructive backfill above.
+  // No XP, stats, ranks, streaks, or completion history are rewritten here.
+  state.dataVersion = Math.max(previousDataVersion, 3);
   runDailyReset();
   await saveState();
 }
@@ -821,30 +879,77 @@ async function saveState(){
 }
 
 /* ============ DAILY RESET / STREAK LOGIC ============ */
+function dateDiffInDays(fromDateStr, toDateStr){
+  if(!fromDateStr || !toDateStr) return 0;
+  const from = new Date(fromDateStr + 'T00:00:00');
+  const to = new Date(toDateStr + 'T00:00:00');
+  return Math.max(0, Math.round((to-from)/86400000));
+}
+
+function getMissedDays(q, today){
+  const anchor = q.lastCompletedDate || todayStr(new Date(q.createdAt || Date.now()));
+  return Math.max(0, dateDiffInDays(anchor, today) - (q.lastCompletedDate ? 1 : 0));
+}
+
+function applyMissedQuestPenalty(q, missedDays){
+  if(!q.penaltyEnabled || q.penaltyTriggered) return null;
+  if(q.recurrence !== 'daily' && q.recurrence !== 'infinite') return null;
+  if(missedDays < (q.penaltyAfterDays || 3)) return null;
+
+  const statKey = STAT_DEFS.some(st=>st.key===q.penaltyStat) ? q.penaltyStat : 'STR';
+  const amount = Math.max(1, Math.min(20, parseInt(q.penaltyAmount,10) || 1));
+  const before = Number(state.stats[statKey]) || 0;
+  const actualLoss = Math.min(before, amount);
+  state.stats[statKey] = Math.max(0, before - amount);
+  q.penaltyTriggered = true;
+
+  return {title:q.title, statKey, amount:actualLoss, attempted:amount, missedDays};
+}
+
 function runDailyReset(){
   const today = todayStr();
   const yest = yesterdayStr();
   if(state.lastActiveDate === today) return;
 
+  const penaltyEvents = [];
+
   state.quests.forEach(q=>{
     if(q.recurrence === 'daily'){
-      // if it wasn't completed yesterday (or today), and it existed, streak breaks
-      if(q.lastCompletedDate !== yest && q.lastCompletedDate !== today && q.streak > 0){
+      const missedDays = getMissedDays(q, today);
+      const wasMissed = q.lastCompletedDate !== yest && q.lastCompletedDate !== today;
+
+      if(wasMissed && q.streak > 0){
         q.streak = 0;
-        q.penalized = true; // flagged so we can notify once rendered
+        q.penalized = true;
+      }
+
+      if(wasMissed){
+        const penalty = applyMissedQuestPenalty(q, missedDays);
+        if(penalty && penalty.amount > 0) penaltyEvents.push(penalty);
       }
       q.completedToday = (q.lastCompletedDate === today);
     } else if(q.recurrence === 'infinite'){
-      // a skipped day breaks both the day streak and the accumulated quest streak
-      if(q.lastCompletedDate !== yest && q.lastCompletedDate !== today && q.streak > 0){
+      const missedDays = getMissedDays(q, today);
+      const wasMissed = q.lastCompletedDate !== yest && q.lastCompletedDate !== today;
+
+      if(wasMissed && q.streak > 0){
         q.streak = 0;
         q.questStreak = 0;
         q.penalized = true;
       }
+
+      if(wasMissed){
+        const penalty = applyMissedQuestPenalty(q, missedDays);
+        if(penalty && penalty.amount > 0) penaltyEvents.push(penalty);
+      }
       q.completionsToday = 0;
+      q.tempUpgradeLevel = 0;
+      q.completionRanksToday = [];
     }
   });
+
   state.lastActiveDate = today;
+  state.pendingPenaltyEvents = penaltyEvents;
 }
 
 /* ============ LEVEL / XP ============ */
@@ -926,15 +1031,17 @@ function eligibleForUpgrade(q){
     && nextRankKey(q.rank) !== null;
 }
 
-// Infinite quests get a same-day-only rank bump every single completion
-// (not the 10-completion threshold that governs the permanent upgrade below).
-// It's purely temporary — completionsToday resets at the daily reset, which
-// automatically reverts this back to the quest's permanent base rank.
+// Infinite quests can optionally be raised through temporary ranks during the
+// current day. The player chooses each increase; the permanent base rank is
+// never changed by this system. tempUpgradeLevel resets at the daily reset.
 function infiniteBaseIdx(q){
   return RANKS.findIndex(r=>r.key===q.rank);
 }
 function infiniteEffectiveRank(q){
-  const idx = Math.min(RANKS.length-1, infiniteBaseIdx(q) + (q.completionsToday||0));
+  const idx = Math.min(
+    RANKS.length - 1,
+    infiniteBaseIdx(q) + (q.tempUpgradeLevel || 0)
+  );
   return RANKS[idx];
 }
 
@@ -1032,6 +1139,7 @@ function renderQuests(){
           ${getRewards(q).map(r=>`<span class="sr-tag">+${r.amount} ${r.key}</span>`).join('')}
           ${q.reminderTime ? `<span class="tag" style="color:#7dd3fc">⏰ ${q.reminderTime}</span>` : ''}
           ${recurrenceMeta}
+          ${q.penaltyEnabled && (q.recurrence==='daily' || q.recurrence==='infinite') ? `<span class="penalty-tag">⚠ −${q.penaltyAmount} ${q.penaltyStat} after ${q.penaltyAfterDays}d</span>` : ''}
         </div>
         ${eligibleForUpgrade(q) ? `<button class="upgrade-btn" data-upgrade="${q.id}">⬆ Upgrade Available</button>` : ''}
         ${isExpanded ? `
@@ -1053,8 +1161,122 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
+
+/* ============ SYSTEM AUDIO ============ */
+/*
+  Lightweight Web Audio effects. No external audio files are needed.
+  Browsers require user interaction before audio can play, so the audio
+  context is lazily unlocked on the first user gesture.
+*/
+let systemAudioCtx = null;
+let systemAudioUnlocked = false;
+
+function initSystemAudio(){
+  if(systemAudioCtx) return systemAudioCtx;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    systemAudioCtx = new AC();
+  }catch(e){
+    systemAudioCtx = null;
+  }
+  return systemAudioCtx;
+}
+
+function unlockSystemAudio(){
+  const ctx = initSystemAudio();
+  if(!ctx) return;
+  systemAudioUnlocked = true;
+  if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+}
+
+['pointerdown','touchstart','keydown'].forEach(evt=>{
+  window.addEventListener(evt, unlockSystemAudio, {once:false, passive:true});
+});
+
+function playTone(freq, start, duration, volume, type='sine', endFreq=null){
+  const ctx = initSystemAudio();
+  if(!ctx || !systemAudioUnlocked) return;
+  try{
+    if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+    if(endFreq){
+      osc.frequency.exponentialRampToValueAtTime(
+        Math.max(20, endFreq),
+        ctx.currentTime + start + duration
+      );
+    }
+
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(
+      Math.max(0.0001, volume),
+      ctx.currentTime + start + 0.012
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      ctx.currentTime + start + duration
+    );
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime + start);
+    osc.stop(ctx.currentTime + start + duration + 0.02);
+  }catch(e){}
+}
+
+function playSystemSound(type='notification'){
+  if(!systemAudioUnlocked) return;
+
+  switch(type){
+    case 'questComplete':
+      playTone(520, 0.00, 0.12, 0.045, 'sine');
+      playTone(740, 0.09, 0.16, 0.050, 'sine');
+      playTone(1040, 0.20, 0.24, 0.040, 'sine');
+      break;
+
+    case 'notification':
+      playTone(660, 0.00, 0.10, 0.030, 'sine');
+      playTone(880, 0.10, 0.15, 0.025, 'sine');
+      break;
+
+    case 'levelup':
+      playTone(440, 0.00, 0.10, 0.035, 'triangle');
+      playTone(587, 0.08, 0.11, 0.040, 'triangle');
+      playTone(784, 0.16, 0.13, 0.045, 'triangle');
+      playTone(1047, 0.25, 0.28, 0.050, 'sine');
+      break;
+
+    case 'upgrade':
+      playTone(600, 0.00, 0.10, 0.035, 'square');
+      playTone(900, 0.09, 0.14, 0.035, 'sine');
+      playTone(1200, 0.19, 0.18, 0.030, 'sine');
+      break;
+
+    case 'penalty':
+      playTone(220, 0.00, 0.16, 0.045, 'sawtooth', 150);
+      playTone(165, 0.14, 0.24, 0.040, 'sawtooth', 110);
+      break;
+
+    case 'boot':
+      playTone(330, 0.00, 0.10, 0.025, 'sine');
+      playTone(495, 0.10, 0.11, 0.030, 'sine');
+      playTone(660, 0.21, 0.12, 0.035, 'sine');
+      playTone(990, 0.33, 0.25, 0.040, 'sine');
+      break;
+  }
+}
+
 /* ============ SYSTEM NOTIFICATIONS ============ */
 function notify(eyebrow, main, kind=''){
+  const soundType = kind === 'questComplete' ? 'questComplete' :
+                    kind === 'levelup' ? 'levelup' :
+                    kind === 'penalty' ? 'penalty' :
+                    kind === 'upgrade' ? 'upgrade' : 'notification';
+  playSystemSound(soundType);
   const layer = document.getElementById('notifLayer');
   const el = document.createElement('div');
   el.className = 'sysnotif'+(kind?(' '+kind):'');
@@ -1097,12 +1319,15 @@ async function toggleQuest(id){
       applyStatReward(q, -1);
     } else {
       q.completedToday = true;
+      // A successful completion starts a fresh penalty cycle.
+      q.penaltyTriggered = false;
       const wasYesterday = q.lastCompletedDate === yesterdayStr();
       q.streak = wasYesterday ? (q.streak||0)+1 : 1;
       q.lastCompletedDate = today;
+      q.penaltyTriggered = false;
       const leveled = addXp(q.xp);
       applyStatReward(q, 1);
-      notify('Quest Complete', `${q.title} · +${q.xp} EXP${rewardMsg}`, '');
+      notify('Quest Complete', `${q.title} · +${q.xp} EXP${rewardMsg}`, 'questComplete');
       if(leveled) announceLevelUp();
     }
   } else {
@@ -1114,7 +1339,7 @@ async function toggleQuest(id){
       q.completed = true;
       const leveled = addXp(q.xp);
       applyStatReward(q, 1);
-      notify('Quest Complete', `${q.title} · +${q.xp} EXP${rewardMsg}`, '');
+      notify('Quest Complete', `${q.title} · +${q.xp} EXP${rewardMsg}`, 'questComplete');
       if(leveled) announceLevelUp();
     }
   }
@@ -1129,30 +1354,39 @@ async function toggleInfiniteQuest(id, delta){
   const rewards = getRewards(q);
   const rewardMsg = rewards.length ? ' · ' + rewards.map(r=>`+${r.amount} ${r.key}`).join(', ') : '';
 
+  // Older saves won't have this history array. It is needed so an undo can
+  // reverse the exact rank that the most recent completion actually paid.
+  if(!Array.isArray(q.completionRanksToday)) q.completionRanksToday = [];
+  if(typeof q.tempUpgradeLevel !== 'number') q.tempUpgradeLevel = 0;
+
   if(delta > 0){
-    // this completion's reward is based on today's tally so far — each
-    // completion bumps the quest's effective rank one tier for the rest of
-    // the day, so the reward escalates as you repeat it (capped at S rank)
+    // The current temporary rank is chosen by the player. It stays active
+    // until they raise it again or the day resets.
     const rewardRank = infiniteEffectiveRank(q);
     const wasFirstToday = (q.completionsToday||0) === 0;
 
     q.completionsToday = (q.completionsToday||0) + 1;
+    q.completionRanksToday.push(rewardRank.key);
     q.questStreak = (q.questStreak||0) + 1;
     if(wasFirstToday){
       const wasYesterday = q.lastCompletedDate === yesterdayStr();
       q.streak = wasYesterday ? (q.streak||0)+1 : 1;
       q.lastCompletedDate = today;
+      q.penaltyTriggered = false;
     }
     const leveled = addXp(rewardRank.xp);
     applyStatReward(q, 1);
     const boostNote = rewardRank.key !== q.rank ? ` — Temp Rank ${rewardRank.key}` : '';
-    notify('Quest Complete', `${q.title} · +${rewardRank.xp} EXP${rewardMsg}${boostNote}`, '');
+    notify('Quest Complete', `${q.title} · +${rewardRank.xp} EXP${rewardMsg}${boostNote}`, 'questComplete');
     if(leveled) announceLevelUp();
   } else {
     if((q.completionsToday||0) <= 0) return; // nothing to undo
-    // reverse the exact reward the most recent completion actually granted
-    const lastIdx = Math.min(RANKS.length-1, infiniteBaseIdx(q) + (q.completionsToday - 1));
-    const lastRank = RANKS[lastIdx];
+
+    const lastRankKey = q.completionRanksToday.length
+      ? q.completionRanksToday.pop()
+      : q.rank;
+    const lastRank = RANKS.find(r=>r.key===lastRankKey) || RANKS.find(r=>r.key===q.rank) || RANKS[0];
+
     q.completionsToday -= 1;
     q.questStreak = Math.max(0, (q.questStreak||0) - 1);
     state.xp = Math.max(0, state.xp - lastRank.xp);
@@ -1165,6 +1399,83 @@ async function toggleInfiniteQuest(id, delta){
   }
   await saveState();
   render();
+}
+
+// After each Infinite-quest completion, offer the player an optional
+// temporary rank increase for the rest of the day. Declining does not
+// penalize the completion; the quest simply remains at its current rank.
+function openTempUpgradeModal(id){
+  const q = state.quests.find(q=>q.id===id);
+  if(!q || q.recurrence !== 'infinite') return;
+
+  const baseIdx = infiniteBaseIdx(q);
+  const currentIdx = Math.min(RANKS.length - 1, baseIdx + (q.tempUpgradeLevel || 0));
+  const nextIdx = Math.min(RANKS.length - 1, currentIdx + 1);
+  const currentRank = RANKS[currentIdx];
+  const nextRank = RANKS[nextIdx];
+  const atS = currentIdx >= RANKS.length - 1;
+
+  tempUpgradeQuestId = id;
+
+  if(atS){
+    document.getElementById('tempUpgradeTitle').textContent = 'MAX TEMP RANK';
+    document.getElementById('tempUpgradeText').innerHTML =
+      `<b>${escapeHtml(q.title)}</b> is already at temporary Rank S for today. Keep going at the maximum tier.`;
+    document.getElementById('tempUpgradeChoice').textContent = 'No further temporary upgrade is available today.';
+    document.getElementById('acceptTempUpgrade').style.display = 'none';
+    document.getElementById('declineTempUpgrade').textContent = 'Continue';
+  } else {
+    document.getElementById('tempUpgradeTitle').textContent = 'UPGRADE FOR TODAY?';
+    document.getElementById('tempUpgradeText').innerHTML =
+      `<b>${escapeHtml(q.title)}</b> is currently Rank ${currentRank.key}.
+       Activate Rank ${nextRank.key} for today's remaining completions, or keep repeating it at Rank ${currentRank.key}.`;
+    document.getElementById('tempUpgradeChoice').textContent =
+      `Next completion: ${nextRank.key} = +${nextRank.xp} EXP`;
+    document.getElementById('acceptTempUpgrade').style.display = '';
+    document.getElementById('declineTempUpgrade').textContent = 'Keep Current';
+  }
+
+  document.getElementById('tempUpgradeOverlay').classList.add('show');
+}
+
+function closeTempUpgradeModal(){
+  document.getElementById('tempUpgradeOverlay').classList.remove('show');
+  tempUpgradeQuestId = null;
+}
+
+async function acceptTempUpgrade(){
+  const q = state.quests.find(q=>q.id===tempUpgradeQuestId);
+  if(!q || q.recurrence !== 'infinite'){
+    closeTempUpgradeModal();
+    return;
+  }
+
+  const baseIdx = infiniteBaseIdx(q);
+  const maxLevel = Math.max(0, RANKS.length - 1 - baseIdx);
+  q.tempUpgradeLevel = Math.min((q.tempUpgradeLevel || 0) + 1, maxLevel);
+
+  await saveState();
+  closeTempUpgradeModal();
+  render();
+}
+
+function declineTempUpgrade(){
+  closeTempUpgradeModal();
+}
+
+async function handleInfiniteCompletion(id){
+  const q = state.quests.find(q=>q.id===id);
+  if(!q || q.recurrence !== 'infinite') return;
+
+  await toggleInfiniteQuest(id, 1);
+
+  // If the quest can still be raised today, let the player decide whether
+  // the next completion should use the next temporary rank.
+  const baseIdx = infiniteBaseIdx(q);
+  const currentIdx = Math.min(RANKS.length - 1, baseIdx + (q.tempUpgradeLevel || 0));
+  if(currentIdx < RANKS.length - 1){
+    openTempUpgradeModal(id);
+  }
 }
 
 function announceLevelUp(){
@@ -1246,11 +1557,24 @@ function applyTypeVisibility(){
   const isMisc = selectedType==='misc';
   document.getElementById('categoryField').classList.toggle('disabled', isMisc);
   document.getElementById('statRewardField').classList.toggle('disabled', isMisc);
+  document.getElementById('penaltyField').classList.toggle('disabled', isMisc || selectedRecur==='once');
   if(isMisc){
     document.getElementById('fCategory').value = 'Misc';
   } else if(document.getElementById('fCategory').value === 'Misc'){
     document.getElementById('fCategory').value = '';
   }
+  updatePenaltyVisibility();
+}
+
+function updatePenaltyVisibility(){
+  const enabled = document.getElementById('fPenaltyEnabled').checked
+    && selectedType !== 'misc'
+    && selectedRecur !== 'once';
+  document.getElementById('penaltyOptions').style.opacity = enabled ? '1' : '.45';
+  document.getElementById('penaltyDaysRow').style.opacity = enabled ? '1' : '.45';
+  document.getElementById('fPenaltyStat').disabled = !enabled;
+  document.getElementById('fPenaltyAmount').disabled = !enabled;
+  document.getElementById('fPenaltyDays').disabled = !enabled;
 }
 
 function updateRecurHint(){
@@ -1268,6 +1592,10 @@ function openModal(){
   document.getElementById('fXp').value='';
   document.getElementById('fReminder').value='';
   document.getElementById('fQuantity').value='1';
+  document.getElementById('fPenaltyEnabled').checked=false;
+  document.getElementById('fPenaltyStat').value='STR';
+  document.getElementById('fPenaltyAmount').value='1';
+  document.getElementById('fPenaltyDays').value='3';
   selectedRank='E'; selectedRecur='daily'; selectedType='standard';
   buildRankSelector();
   buildStatRewardSelector();
@@ -1292,6 +1620,10 @@ async function saveQuest(){
   const statRewards = isMisc ? [] : readStatRewards();
   const reminderTime = document.getElementById('fReminder').value || null;
   const quantity = Math.max(1, Math.min(9999, parseInt(document.getElementById('fQuantity').value,10) || 1));
+  const penaltyEnabled = !isMisc && selectedRecur !== 'once' && document.getElementById('fPenaltyEnabled').checked;
+  const penaltyStat = document.getElementById('fPenaltyStat').value;
+  const penaltyAmount = Math.max(1, Math.min(20, parseInt(document.getElementById('fPenaltyAmount').value,10) || 1));
+  const penaltyAfterDays = Math.max(1, Math.min(365, parseInt(document.getElementById('fPenaltyDays').value,10) || 3));
 
   state.quests.push({
     id: uid(),
@@ -1311,6 +1643,13 @@ async function saveQuest(){
     lastUpgradeStreak:0,
     completionsToday:0,
     questStreak:0,
+    tempUpgradeLevel:0,
+    completionRanksToday:[],
+    penaltyEnabled,
+    penaltyStat,
+    penaltyAmount,
+    penaltyAfterDays,
+    penaltyTriggered:false,
     createdAt: Date.now()
   });
   await saveState();
@@ -1377,6 +1716,8 @@ function buildQuestFromTemplate(tpl, categoryLabel, createdAt){
     lastUpgradeStreak:0,
     completionsToday:0,
     questStreak:0,
+    tempUpgradeLevel:0,
+    completionRanksToday:[],
     createdAt
   };
 }
@@ -1498,6 +1839,7 @@ async function handleChatSend(){
 
 /* ============ QUEST UPGRADE ============ */
 let upgradeQuestId = null;
+let tempUpgradeQuestId = null;
 
 function openUpgradeModal(id){
   const q = state.quests.find(q=>q.id===id);
@@ -1532,11 +1874,15 @@ async function confirmUpgradeQuest(){
   q.xp = nextDef.xp;
   q.quantity = newQuantity;
   if(newTitle) q.title = newTitle;
+  // A permanent rank upgrade changes the base of the temporary ladder, so
+  // discard any active daily boost. Past completion history is retained so
+  // the undo button can still reverse the exact rewards already granted.
+  q.tempUpgradeLevel = 0;
   q.lastUpgradeStreak = relevantStreakFor(q);
 
   await saveState();
   closeUpgradeModal();
-  notify('Quest Upgraded', `${q.title} is now Rank ${next}`, 'levelup');
+  notify('Quest Upgraded', `${q.title} is now Rank ${next}`, 'upgrade');
   render();
 }
 
@@ -1551,6 +1897,10 @@ document.getElementById('closeUpgrade').addEventListener('click', closeUpgradeMo
 document.getElementById('cancelUpgrade').addEventListener('click', closeUpgradeModal);
 document.getElementById('upgradeOverlay').addEventListener('click', e=>{ if(e.target.id==='upgradeOverlay') closeUpgradeModal(); });
 document.getElementById('confirmUpgrade').addEventListener('click', confirmUpgradeQuest);
+document.getElementById('closeTempUpgrade').addEventListener('click', closeTempUpgradeModal);
+document.getElementById('declineTempUpgrade').addEventListener('click', declineTempUpgrade);
+document.getElementById('acceptTempUpgrade').addEventListener('click', acceptTempUpgrade);
+document.getElementById('tempUpgradeOverlay').addEventListener('click', e=>{ if(e.target.id==='tempUpgradeOverlay') declineTempUpgrade(); });
 
 document.getElementById('openOnboardBtn').addEventListener('click', ()=>{
   resetChat();
@@ -1580,6 +1930,7 @@ document.getElementById('recurSelect').addEventListener('click', e=>{
   selectedRecur = opt.dataset.val;
   document.querySelectorAll('#recurSelect .recur-opt').forEach(o=>o.classList.toggle('sel', o===opt));
   updateRecurHint();
+  applyTypeVisibility();
 });
 document.getElementById('typeSelect').addEventListener('click', e=>{
   const opt = e.target.closest('.recur-opt');
@@ -1589,6 +1940,7 @@ document.getElementById('typeSelect').addEventListener('click', e=>{
   applyTypeVisibility();
 });
 document.getElementById('srAddBtn').addEventListener('click', addStatRewardRow);
+document.getElementById('fPenaltyEnabled').addEventListener('change', updatePenaltyVisibility);
 document.getElementById('srList').addEventListener('click', e=>{
   const btn = e.target.closest('.sr-remove');
   if(!btn) return;
@@ -1616,7 +1968,7 @@ document.getElementById('questList').addEventListener('click', e=>{
   if(check){
     const qid = check.dataset.id;
     const q = state.quests.find(q=>q.id===qid);
-    if(q && q.recurrence==='infinite'){ toggleInfiniteQuest(qid, 1); }
+    if(q && q.recurrence==='infinite'){ handleInfiniteCompletion(qid); }
     else { toggleQuest(qid); }
     return;
   }
@@ -1744,6 +2096,7 @@ if('serviceWorker' in navigator){
   await loadState();
   render();
   updateNotifButton();
+  setTimeout(()=>playSystemSound('boot'), 80);
   checkReminders();
   setInterval(checkReminders, 20000);
 
@@ -1753,12 +2106,22 @@ if('serviceWorker' in navigator){
     setTimeout(openOnboardModal, 400);
   }
 
-  // notify about any streak penalties discovered during daily reset
+  // Notify about streak breaks and any configured attribute penalties
   const penalized = state.quests.filter(q=>q.penalized);
-  if(penalized.length){
+  const penaltyEvents = Array.isArray(state.pendingPenaltyEvents) ? state.pendingPenaltyEvents : [];
+  if(penalized.length || penaltyEvents.length){
     penalized.forEach(q=> q.penalized=false);
+    state.pendingPenaltyEvents = [];
     await saveState();
-    setTimeout(()=> notify('Penalty', `Streak reset: ${penalized.map(q=>q.title).join(', ')}`, 'penalty'), 300);
+    if(penalized.length){
+      setTimeout(()=> notify('Penalty', `Streak reset: ${penalized.map(q=>q.title).join(', ')}`, 'penalty'), 300);
+    }
+    penaltyEvents.forEach((p, i)=>{
+      setTimeout(()=>{
+        const lossText = p.amount > 0 ? `−${p.amount} ${p.statKey}` : `No ${p.statKey} to lose`;
+        notify('Quest Penalty', `${p.title} · ${lossText} after ${p.missedDays} missed days`, 'penalty');
+      }, 650 + i*350);
+    });
   }
 })();
 </script>
