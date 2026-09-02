@@ -559,7 +559,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
     <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
     <div class="panel-title">Attributes</div>
     <div class="stats-grid" id="statsGrid"></div>
-    <div class="points-note">Unspent points: <b id="pointsLeft">0</b> — awarded on level up. Quests can also grant specific attributes directly.</div>
+    <div class="points-note">Unspent points: <b id="pointsLeft">0</b> — awarded on level up. Quests can also grant specific attributes directly, except Succulence, which only rises through level-up points.</div>
   </div>
 
   <!-- QUESTS PANEL -->
@@ -753,12 +753,16 @@ const PLAYER_RANKS = [
   {min:50, key:'S', color:'#f5c451', glow:'rgba(245,196,81,.3)'},
 ];
 const STAT_DEFS = [
-  {key:'KNW', label:'Knowledge'},
-  {key:'STR', label:'Strength'},
-  {key:'CHM', label:'Charm'},
-  {key:'MEN', label:'Mentality'},
-  {key:'STA', label:'Stamina'},
+  {key:'KNW', label:'Knowledge', start:10, questAwardable:true},
+  {key:'STR', label:'Strength', start:10, questAwardable:true},
+  {key:'CHM', label:'Charm', start:10, questAwardable:true},
+  {key:'MEN', label:'Mentality', start:10, questAwardable:true},
+  {key:'STA', label:'Stamina', start:10, questAwardable:true},
+  // Starts at 0 and is intentionally left out of quest stat-reward and
+  // penalty options — the only way to raise it is spending level-up points.
+  {key:'SUC', label:'Succulence', start:0, questAwardable:false},
 ];
+const AWARDABLE_STAT_DEFS = STAT_DEFS.filter(s => s.questAwardable !== false);
 // maps old attribute keys (pre-update saves) onto the closest new attribute,
 // so existing invested points aren't lost when the schema changes.
 const STAT_MIGRATION = { STR:'STR', VIT:'STA', AGI:'MEN', INT:'KNW', PER:'CHM' };
@@ -860,7 +864,7 @@ let expandedQuestId = null;
 
 function defaultState(){
   const stats = {};
-  STAT_DEFS.forEach(s => stats[s.key] = 10);
+  STAT_DEFS.forEach(s => stats[s.key] = (typeof s.start === 'number' ? s.start : 10));
   return {
     name:'Player',
     level:1,
@@ -927,7 +931,7 @@ function migrateStats(){
   if(alreadyCurrent) return;
 
   const newStats = {};
-  STAT_DEFS.forEach(s => newStats[s.key] = 10);
+  STAT_DEFS.forEach(s => newStats[s.key] = (typeof s.start === 'number' ? s.start : 10));
   Object.keys(oldStats).forEach(oldKey=>{
     const mapped = STAT_MIGRATION[oldKey];
     if(mapped && typeof oldStats[oldKey] === 'number'){
@@ -1620,12 +1624,12 @@ function buildStatRewardSelector(){
 
 function statOptionsHtml(selectedKey){
   return '<option value="NONE">None</option>' +
-    STAT_DEFS.map(s => `<option value="${s.key}" ${s.key===selectedKey?'selected':''}>${s.label}</option>`).join('');
+    AWARDABLE_STAT_DEFS.map(s => `<option value="${s.key}" ${s.key===selectedKey?'selected':''}>${s.label}</option>`).join('');
 }
 
 function addStatRewardRow(){
   const list = document.getElementById('srList');
-  if(list.children.length >= STAT_DEFS.length) return; // one row per attribute, max
+  if(list.children.length >= AWARDABLE_STAT_DEFS.length) return; // one row per awardable attribute, max
   const row = document.createElement('div');
   row.className = 'sr-row';
   row.innerHTML = `
@@ -1639,7 +1643,7 @@ function addStatRewardRow(){
 
 function refreshAddButtonState(){
   const list = document.getElementById('srList');
-  document.getElementById('srAddBtn').disabled = list.children.length >= STAT_DEFS.length;
+  document.getElementById('srAddBtn').disabled = list.children.length >= AWARDABLE_STAT_DEFS.length;
 }
 
 function readStatRewards(){
