@@ -445,7 +445,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 .sr-add-btn:disabled{opacity:.3;cursor:not-allowed;}
 
 /* ---------- system notification ---------- */
-.sysnotif-layer{position:fixed;top:22px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:100;pointer-events:none;}
+.sysnotif-layer{position:fixed;top:calc(22px + env(safe-area-inset-top));left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:100;pointer-events:none;}
 .sysnotif{
   font-family:'Orbitron',sans-serif;
   background:rgba(6,10,20,.92);border:1px solid var(--blue);
@@ -1299,6 +1299,48 @@ function unlockSystemAudio(){
   window.addEventListener(evt, unlockSystemAudio, {once:false, passive:true});
 });
 
+function createNoiseBuffer(duration){
+  const ctx = initSystemAudio();
+  if(!ctx) return null;
+  const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<bufferSize;i++){
+    data[i] = Math.random()*2-1;
+  }
+  return buffer;
+}
+
+function playNoiseBurst(start, duration, volume, filterFreqStart=2000, filterFreqEnd=null, filterType='highpass'){
+  const ctx = initSystemAudio();
+  if(!ctx || !systemAudioUnlocked) return;
+  try{
+    if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    const buffer = createNoiseBuffer(duration);
+    if(!buffer) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.setValueAtTime(Math.max(20, filterFreqStart), ctx.currentTime + start);
+    if(filterFreqEnd){
+      filter.frequency.exponentialRampToValueAtTime(Math.max(20, filterFreqEnd), ctx.currentTime + start + duration);
+    }
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, volume), ctx.currentTime + start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + duration);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(ctx.currentTime + start);
+    src.stop(ctx.currentTime + start + duration + 0.02);
+  }catch(e){}
+}
+
 function playTone(freq, start, duration, volume, type='sine', endFreq=null){
   const ctx = initSystemAudio();
   if(!ctx || !systemAudioUnlocked) return;
@@ -1364,6 +1406,24 @@ function playSystemSound(type='notification'){
     case 'penalty':
       playTone(220, 0.00, 0.16, 0.045, 'sawtooth', 150);
       playTone(165, 0.14, 0.24, 0.040, 'sawtooth', 110);
+      break;
+
+    case 'inject':
+      // trigger click — cap disengaging
+      playTone(1900, 0.00, 0.02, 0.022, 'square');
+      // long pressurized hiss as the plunger depresses — pitch of the hiss
+      // drops as pressure bleeds off over the full push
+      playNoiseBurst(0.04, 1.25, 0.05, 3400, 800, 'highpass');
+      // sustained low mechanical push, slowly dropping in pitch as the
+      // plunger drives down steadily through the full 1.5s
+      playTone(150, 0.05, 1.22, 0.05, 'sine', 55);
+      // a couple of uneven pressure pulses for texture, like the plunger
+      // isn't moving perfectly smoothly
+      playNoiseBurst(0.40, 0.14, 0.035, 2200, 1400, 'bandpass');
+      playNoiseBurst(0.85, 0.14, 0.032, 1900, 1200, 'bandpass');
+      // final seat/lock as the plunger bottoms out
+      playTone(2100, 1.30, 0.05, 0.024, 'square');
+      playTone(90, 1.30, 0.16, 0.035, 'sine', 40);
       break;
 
     case 'boot':
@@ -1598,6 +1658,9 @@ async function allocateStat(key){
   if(state.statPoints<=0) return;
   state.stats[key] += 1;
   state.statPoints -= 1;
+  if(key === 'SUC'){
+    playSystemSound('inject');
+  }
   await saveState();
   render();
 }
