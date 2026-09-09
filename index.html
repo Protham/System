@@ -8,6 +8,14 @@
 <!-- PWA / installability -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#03050a">
+
+<!-- Fonts loaded async so they never block the initial (dark) paint --
+     a render-blocking @import here was letting the browser's default
+     white/grey background show briefly before the theme applied. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap"></noscript>
 <meta name="background-color" content="#03050a">
 <meta name="mobile-web-app-capable" content="yes">
 
@@ -19,8 +27,6 @@
 <link rel="icon" href="icon-192.png">
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap');
-
 :root{
   --bg:#03050a;
   --bg-panel:#0a0f1d;
@@ -41,7 +47,7 @@
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;overscroll-behavior-y:none;}
+html,body{margin:0;padding:0;overscroll-behavior-y:none;background:var(--bg);}
 html{height:100%;}
 body{
   background:
@@ -232,6 +238,12 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 .goal-btn:hover{background:var(--blue);color:#03050a;box-shadow:0 0 14px rgba(45,212,255,.5);}
 
 .quest-list{display:flex;flex-direction:column;gap:8px;}
+.quest-group-heading{
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.24em;
+  color:var(--text-dim);text-transform:uppercase;
+  margin:16px 0 2px;padding-top:12px;border-top:1px dashed rgba(45,212,255,.16);
+}
+.quest-group-heading:first-child{margin-top:0;padding-top:0;border-top:none;}
 .quest{
   display:flex;align-items:center;gap:12px;
   background:var(--bg-inset);border:1px solid rgba(45,212,255,.14);
@@ -464,6 +476,35 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 @keyframes notifOut{to{opacity:0;transform:translateY(-8px) scale(.98);}}
 
 .footnote{text-align:center;color:var(--text-dimmer);font-size:11px;letter-spacing:.1em;margin-top:24px;}
+
+/* ---------- section tabs + swipeable pager ---------- */
+.section-tabs{display:flex;gap:6px;margin-bottom:14px;}
+.section-tab{
+  flex:1;text-align:center;
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.16em;
+  padding:11px 6px;background:var(--bg-inset);border:1px solid var(--text-dimmer);
+  color:var(--text-dim);cursor:pointer;text-transform:uppercase;transition:.15s;
+}
+.section-tab.active{color:var(--blue);border-color:var(--blue);background:var(--blue-soft);box-shadow:0 0 10px rgba(45,212,255,.25) inset;}
+.pager{
+  display:flex;
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.pager::-webkit-scrollbar{display:none;}
+.page{
+  flex:0 0 100%;
+  min-width:100%;
+  scroll-snap-align:start;
+  scroll-snap-stop:always;
+}
+.page-dots{display:flex;justify-content:center;gap:7px;margin:2px 0 20px;}
+.page-dot{width:7px;height:7px;border-radius:50%;background:var(--text-dimmer);transition:.2s;cursor:pointer;}
+.page-dot.active{background:var(--blue);box-shadow:0 0 8px rgba(45,212,255,.6);width:20px;border-radius:4px;}
 .field-hint{margin-top:6px;font-size:11px;color:var(--text-dimmer);letter-spacing:.02em;}
 
 .reminder-bar{
@@ -526,63 +567,84 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
     <button class="notif-btn" id="notifBtn">🔔 Enable Reminders</button>
   </div>
 
-  <!-- STATUS PANEL -->
-  <div class="panel">
-    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
-    <div class="panel-title">Status</div>
+  <div class="section-tabs" id="sectionTabs">
+    <div class="section-tab active" data-page="0">Status</div>
+    <div class="section-tab" data-page="1">Attributes</div>
+    <div class="section-tab" data-page="2">Quests</div>
+  </div>
 
-    <div class="player-row">
-      <input id="playerName" class="player-name" maxlength="24" value="Player" />
-      <div class="level-box">
-        <div class="level-num" id="levelNum">1</div>
-        <div class="level-lbl">Level</div>
+  <div class="pager" id="pager">
+    <div class="page">
+      <!-- STATUS PANEL -->
+      <div class="panel">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-title">Status</div>
+
+        <div class="player-row">
+          <input id="playerName" class="player-name" maxlength="24" value="Player" />
+          <div class="level-box">
+            <div class="level-num" id="levelNum">1</div>
+            <div class="level-lbl">Level</div>
+          </div>
+        </div>
+
+        <div class="xp-row">
+          <span>EXP</span>
+          <span id="xpText">0 / 100</span>
+        </div>
+        <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
+
+        <div class="consistency-row">
+          <div>
+            <div class="consistency-title">Consistency</div>
+            <div class="consistency-sub">Combined streak-days across all active dailies</div>
+          </div>
+          <div class="consistency-num" id="consistencyNum">0</div>
+        </div>
       </div>
     </div>
 
-    <div class="xp-row">
-      <span>EXP</span>
-      <span id="xpText">0 / 100</span>
-    </div>
-    <div class="xp-track"><div class="xp-fill" id="xpFill" style="width:0%"></div></div>
-
-    <div class="consistency-row">
-      <div>
-        <div class="consistency-title">Consistency</div>
-        <div class="consistency-sub">Combined streak-days across all active dailies</div>
+    <div class="page">
+      <!-- STATS PANEL -->
+      <div class="panel">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-title">Attributes</div>
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="points-note">Unspent points: <b id="pointsLeft">0</b> — awarded on level up. Quests can also grant specific attributes directly, except Succulence, which only rises through level-up points.</div>
       </div>
-      <div class="consistency-num" id="consistencyNum">0</div>
+    </div>
+
+    <div class="page">
+      <!-- QUESTS PANEL -->
+      <div class="panel">
+        <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+        <div class="panel-title">Quests</div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+          <div class="tabs">
+            <div class="tab active" data-tab="active">Active</div>
+            <div class="tab" data-tab="completed">Completed</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="add-btn goal-btn" id="openOnboardBtn">🧭 Talk to the System</button>
+            <button class="add-btn" id="openModalBtn">+ New Quest</button>
+          </div>
+        </div>
+
+        <div class="quest-list" id="questList"></div>
+      </div>
     </div>
   </div>
 
-  <!-- STATS PANEL -->
-  <div class="panel">
-    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
-    <div class="panel-title">Attributes</div>
-    <div class="stats-grid" id="statsGrid"></div>
-    <div class="points-note">Unspent points: <b id="pointsLeft">0</b> — awarded on level up. Quests can also grant specific attributes directly, except Succulence, which only rises through level-up points.</div>
-  </div>
-
-  <!-- QUESTS PANEL -->
-  <div class="panel">
-    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
-    <div class="panel-title">Quests</div>
-
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-      <div class="tabs">
-        <div class="tab active" data-tab="active">Active</div>
-        <div class="tab" data-tab="completed">Completed</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="add-btn goal-btn" id="openOnboardBtn">🧭 Talk to the System</button>
-        <button class="add-btn" id="openModalBtn">+ New Quest</button>
-      </div>
-    </div>
-
-    <div class="quest-list" id="questList"></div>
+  <div class="page-dots" id="pageDots">
+    <div class="page-dot active" data-page="0"></div>
+    <div class="page-dot" data-page="1"></div>
+    <div class="page-dot" data-page="2"></div>
   </div>
 
   <div class="footnote">DATA PERSISTS TO THIS DEVICE · ARISE.</div>
 </div>
+
 
 <!-- ONBOARDING / GOAL WIZARD -->
 <div class="overlay" id="onboardOverlay">
@@ -1206,58 +1268,75 @@ function renderQuests(){
     return;
   }
 
-  filtered.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
+  const GROUPS = [
+    {key:'daily', label:'Daily'},
+    {key:'infinite', label:'Infinite'},
+    {key:'once', label:'One-Time'}
+  ];
 
-  filtered.forEach(q=>{
-    const isInfinite = q.recurrence==='infinite';
-    const baseRankDef = RANKS.find(r=>r.key===q.rank) || RANKS[0];
-    const effectiveRankDef = isInfinite ? infiniteEffectiveRank(q) : baseRankDef;
-    const isBoosted = isInfinite && effectiveRankDef.key !== baseRankDef.key;
-    const doneNow = isInfinite ? false : (q.recurrence==='daily' ? q.completedToday : q.completed);
-    const checkedNow = isInfinite ? (q.completionsToday||0) > 0 : doneNow;
+  GROUPS.forEach(g=>{
+    const groupQuests = filtered.filter(q=>q.recurrence===g.key);
+    if(groupQuests.length===0) return;
+    groupQuests.sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
 
-    let recurrenceMeta;
-    if(q.recurrence==='daily'){
-      recurrenceMeta = `<span class="streak">🔥 ${q.streak||0} day streak</span>`;
-    } else if(isInfinite){
-      recurrenceMeta = `<span class="streak">🔥 ${q.streak||0} day streak</span>` +
-        `<span class="quest-streak">⚡ ${q.questStreak||0} quest streak</span>` +
-        `<span class="tag" style="color:#5f7089">${q.completionsToday||0}× today</span>`;
-    } else {
-      recurrenceMeta = `<span class="tag" style="color:#5f7089">one-time</span>`;
-    }
+    const heading = document.createElement('div');
+    heading.className = 'quest-group-heading';
+    heading.textContent = `${g.label} (${groupQuests.length})`;
+    list.appendChild(heading);
 
-    const el = document.createElement('div');
-    const isExpanded = expandedQuestId === q.id;
-    el.className = 'quest'+(doneNow?' done':'')+(isExpanded?' expanded':'');
-    el.dataset.id = q.id;
-    el.innerHTML = `
-      <div class="check ${checkedNow?'checked':''}" data-id="${q.id}"></div>
-      <div class="q-body">
-        <div class="q-title">${escapeHtml(q.title)}</div>
-        <div class="q-meta">
-          <span class="rank-tag" style="color:${baseRankDef.color};border:1px solid ${baseRankDef.color}">${q.rank}</span>
-          ${isBoosted ? `<span class="temp-rank-tag">⚡ Temp ${effectiveRankDef.key}</span>` : ''}
-          ${q.type==='misc' ? `<span class="misc-tag">Misc</span>` : (q.category ? `<span class="tag" style="color:${catColor(q.category)}">${escapeHtml(q.category)}</span>` : '')}
-          ${q.quantity ? `<span class="qty-tag">×${q.quantity}</span>` : ''}
-          <span class="q-xp">+${effectiveRankDef.xp} EXP${isBoosted ? ' next' : ''}</span>
-          ${getRewards(q).map(r=>`<span class="sr-tag">+${r.amount} ${r.key}</span>`).join('')}
-          ${q.reminderTime ? `<span class="tag" style="color:#7dd3fc">⏰ ${q.reminderTime}</span>` : ''}
-          ${recurrenceMeta}
-          ${q.penaltyEnabled && (q.recurrence==='daily' || q.recurrence==='infinite') ? `<span class="penalty-tag">⚠ −${q.penaltyAmount} ${q.penaltyStat} after ${q.penaltyAfterDays}d</span>` : ''}
-        </div>
-        ${eligibleForUpgrade(q) ? `<button class="upgrade-btn" data-upgrade="${q.id}">⬆ Upgrade Available</button>` : ''}
-        ${isExpanded ? `
-          <div class="quest-expanded">
-            <div class="quest-expanded-note">Quests cannot be edited.</div>
-            <button class="q-remove-btn" data-remove="${q.id}">Remove Quest</button>
-          </div>
-        ` : ''}
-      </div>
-      ${isInfinite && (q.completionsToday||0) > 0 ? `<button class="q-undo" data-undo="${q.id}">−1</button>` : ''}
-    `;
-    list.appendChild(el);
+    groupQuests.forEach(q => list.appendChild(buildQuestElement(q)));
   });
+}
+
+function buildQuestElement(q){
+  const isInfinite = q.recurrence==='infinite';
+  const baseRankDef = RANKS.find(r=>r.key===q.rank) || RANKS[0];
+  const effectiveRankDef = isInfinite ? infiniteEffectiveRank(q) : baseRankDef;
+  const isBoosted = isInfinite && effectiveRankDef.key !== baseRankDef.key;
+  const doneNow = isInfinite ? false : (q.recurrence==='daily' ? q.completedToday : q.completed);
+  const checkedNow = isInfinite ? (q.completionsToday||0) > 0 : doneNow;
+
+  let recurrenceMeta;
+  if(q.recurrence==='daily'){
+    recurrenceMeta = `<span class="streak">🔥 ${q.streak||0} day streak</span>`;
+  } else if(isInfinite){
+    recurrenceMeta = `<span class="streak">🔥 ${q.streak||0} day streak</span>` +
+      `<span class="quest-streak">⚡ ${q.questStreak||0} quest streak</span>` +
+      `<span class="tag" style="color:#5f7089">${q.completionsToday||0}× today</span>`;
+  } else {
+    recurrenceMeta = `<span class="tag" style="color:#5f7089">one-time</span>`;
+  }
+
+  const el = document.createElement('div');
+  const isExpanded = expandedQuestId === q.id;
+  el.className = 'quest'+(doneNow?' done':'')+(isExpanded?' expanded':'');
+  el.dataset.id = q.id;
+  el.innerHTML = `
+    <div class="check ${checkedNow?'checked':''}" data-id="${q.id}"></div>
+    <div class="q-body">
+      <div class="q-title">${escapeHtml(q.title)}</div>
+      <div class="q-meta">
+        <span class="rank-tag" style="color:${baseRankDef.color};border:1px solid ${baseRankDef.color}">${q.rank}</span>
+        ${isBoosted ? `<span class="temp-rank-tag">⚡ Temp ${effectiveRankDef.key}</span>` : ''}
+        ${q.type==='misc' ? `<span class="misc-tag">Misc</span>` : (q.category ? `<span class="tag" style="color:${catColor(q.category)}">${escapeHtml(q.category)}</span>` : '')}
+        ${q.quantity ? `<span class="qty-tag">×${q.quantity}</span>` : ''}
+        <span class="q-xp">+${effectiveRankDef.xp} EXP${isBoosted ? ' next' : ''}</span>
+        ${getRewards(q).map(r=>`<span class="sr-tag">+${r.amount} ${r.key}</span>`).join('')}
+        ${q.reminderTime ? `<span class="tag" style="color:#7dd3fc">⏰ ${q.reminderTime}</span>` : ''}
+        ${recurrenceMeta}
+        ${q.penaltyEnabled && (q.recurrence==='daily' || q.recurrence==='infinite') ? `<span class="penalty-tag">⚠ −${q.penaltyAmount} ${q.penaltyStat} after ${q.penaltyAfterDays}d</span>` : ''}
+      </div>
+      ${eligibleForUpgrade(q) ? `<button class="upgrade-btn" data-upgrade="${q.id}">⬆ Upgrade Available</button>` : ''}
+      ${isExpanded ? `
+        <div class="quest-expanded">
+          <div class="quest-expanded-note">Quests cannot be edited.</div>
+          <button class="q-remove-btn" data-remove="${q.id}">Remove Quest</button>
+        </div>
+      ` : ''}
+    </div>
+    ${isInfinite && (q.completionsToday||0) > 0 ? `<button class="q-undo" data-undo="${q.id}">−1</button>` : ''}
+  `;
+  return el;
 }
 
 function escapeHtml(str){
@@ -1293,6 +1372,16 @@ function unlockSystemAudio(){
   if(!ctx) return;
   systemAudioUnlocked = true;
   if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
+  // iOS Safari is most reliably unlocked by actually starting a sound
+  // (even silent) synchronously inside the gesture handler, rather than
+  // only resuming the context.
+  try{
+    const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start(0);
+  }catch(e){}
 }
 
 ['pointerdown','touchstart','keydown'].forEach(evt=>{
@@ -1312,8 +1401,9 @@ function createNoiseBuffer(duration){
 }
 
 function playNoiseBurst(start, duration, volume, filterFreqStart=2000, filterFreqEnd=null, filterType='highpass'){
+  if(!systemAudioUnlocked) return;
   const ctx = initSystemAudio();
-  if(!ctx || !systemAudioUnlocked) return;
+  if(!ctx) return;
   try{
     if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
     const buffer = createNoiseBuffer(duration);
@@ -1342,8 +1432,9 @@ function playNoiseBurst(start, duration, volume, filterFreqStart=2000, filterFre
 }
 
 function playTone(freq, start, duration, volume, type='sine', endFreq=null){
+  if(!systemAudioUnlocked) return;
   const ctx = initSystemAudio();
-  if(!ctx || !systemAudioUnlocked) return;
+  if(!ctx) return;
   try{
     if(ctx.state === 'suspended') ctx.resume().catch(()=>{});
     const osc = ctx.createOscillator();
@@ -2158,6 +2249,53 @@ document.getElementById('statsGrid').addEventListener('click', e=>{
   const btn = e.target.closest('.stat-plus');
   if(btn && !btn.disabled) allocateStat(btn.dataset.stat);
 });
+
+/* ============ SECTION PAGER (swipeable Status / Attributes / Quests) ============ */
+const SECTION_PAGE_COUNT = 3;
+let currentSectionPage = 0;
+
+function goToSectionPage(idx, smooth=true){
+  const pager = document.getElementById('pager');
+  idx = Math.max(0, Math.min(SECTION_PAGE_COUNT-1, idx));
+  pager.scrollTo({left: idx * pager.clientWidth, behavior: smooth ? 'smooth' : 'auto'});
+  currentSectionPage = idx;
+  updateActiveSectionTab(idx);
+}
+
+function updateActiveSectionTab(idx){
+  document.querySelectorAll('.section-tab').forEach(t=>{
+    t.classList.toggle('active', Number(t.dataset.page)===idx);
+  });
+  document.querySelectorAll('.page-dot').forEach(d=>{
+    d.classList.toggle('active', Number(d.dataset.page)===idx);
+  });
+}
+
+document.querySelectorAll('.section-tab').forEach(t=>{
+  t.addEventListener('click', ()=> goToSectionPage(Number(t.dataset.page)));
+});
+
+document.querySelectorAll('.page-dot').forEach(d=>{
+  d.addEventListener('click', ()=> goToSectionPage(Number(d.dataset.page)));
+});
+
+let pagerScrollTimer;
+document.getElementById('pager').addEventListener('scroll', ()=>{
+  clearTimeout(pagerScrollTimer);
+  pagerScrollTimer = setTimeout(()=>{
+    const pager = document.getElementById('pager');
+    if(!pager.clientWidth) return;
+    const idx = Math.round(pager.scrollLeft / pager.clientWidth);
+    if(idx !== currentSectionPage){
+      currentSectionPage = idx;
+      updateActiveSectionTab(idx);
+    }
+  }, 80);
+}, {passive:true});
+
+// Re-snap to the current page after a resize/orientation change, since the
+// scroll position was computed against the old page width.
+window.addEventListener('resize', ()=> goToSectionPage(currentSectionPage, false));
 
 let nameTimer;
 document.getElementById('playerName').addEventListener('input', e=>{
