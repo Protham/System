@@ -176,31 +176,6 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
   transition:color .6s ease, text-shadow .6s ease;
 }
 
-/* ---------- goal wizard chat ---------- */
-.chat-modal{max-height:85vh;display:flex;flex-direction:column;}
-.chat-log{
-  flex:1;min-height:180px;max-height:320px;overflow-y:auto;
-  display:flex;flex-direction:column;gap:10px;
-  padding:4px 2px;margin-bottom:12px;
-}
-.chat-msg{max-width:85%;padding:10px 13px;font-size:13.5px;line-height:1.45;}
-.chat-msg.system{
-  align-self:flex-start;background:var(--bg-inset);border:1px solid rgba(45,212,255,.3);
-  color:var(--text);border-top-left-radius:0;
-}
-.chat-msg.user{
-  align-self:flex-end;background:var(--violet-soft);border:1px solid var(--violet);
-  color:#eee6ff;border-top-right-radius:0;
-}
-.chat-msg .cm-quests{margin-top:6px;padding-left:2px;font-size:12px;color:var(--text-dim);line-height:1.6;}
-.chat-input-row{display:flex;gap:8px;}
-.chat-input-row input{
-  flex:1;background:var(--bg-inset);border:1px solid var(--text-dimmer);color:var(--text);
-  padding:10px 12px;font-family:'Rajdhani',sans-serif;font-size:14px;outline:none;
-}
-.chat-input-row input:focus{border-color:var(--blue);}
-.chat-send{flex:0 0 auto;padding:10px 18px;}
-
 /* ---------- stats grid ---------- */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
 .stat{
@@ -267,6 +242,10 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
 .rank-tag{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;}
 .q-xp{font-size:11px;color:var(--text-dim);}
 .qty-tag{font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:.05em;color:var(--green);border:1px solid var(--green);}
+.qty-tag.qty-tag-boosted{
+  color:#2dd4ff;border-color:#2dd4ff;background:rgba(45,212,255,.08);border-style:dashed;
+  animation:tempPulse 1.6s ease-in-out infinite;
+}
 .streak{font-size:11px;color:var(--gold);}
 .quest-streak{font-size:11px;color:var(--violet);}
 .temp-rank-tag{
@@ -626,7 +605,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
             <div class="tab" data-tab="completed">Completed</div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="add-btn goal-btn" id="openOnboardBtn">🧭 Talk to the System</button>
+            <button class="add-btn goal-btn" id="loadDefaultQuestsBtn">🧭 Load Default Quests</button>
             <button class="add-btn" id="openModalBtn">+ New Quest</button>
           </div>
         </div>
@@ -643,24 +622,6 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
   </div>
 
   <div class="footnote">DATA PERSISTS TO THIS DEVICE · ARISE.</div>
-</div>
-
-
-<!-- ONBOARDING / GOAL WIZARD -->
-<div class="overlay" id="onboardOverlay">
-  <div class="modal chat-modal" style="max-width:480px;">
-    <button class="close-x" id="closeOnboard">✕</button>
-    <div class="eyebrow" style="margin-bottom:8px;">// System Awakening</div>
-    <h3 style="margin-bottom:12px;">TELL THE SYSTEM YOUR GOALS</h3>
-    <div class="chat-log" id="chatLog"></div>
-    <div class="chat-input-row">
-      <input id="chatInput" type="text" placeholder="e.g. I want to get fitter and read more" maxlength="200" />
-      <button class="btn-primary chat-send" id="chatSendBtn">Send</button>
-    </div>
-    <div class="modal-actions" style="margin-top:14px;">
-      <button class="btn-ghost" id="skipOnboard">Done</button>
-    </div>
-  </div>
 </div>
 
 <!-- MODAL -->
@@ -763,6 +724,11 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
       <div class="temp-upgrade-note" id="tempUpgradeText"></div>
       <div class="temp-upgrade-choice" id="tempUpgradeChoice"></div>
     </div>
+    <div class="field" id="tempUpgradeQtyField">
+      <label>Quantity for today (optional)</label>
+      <input id="tempUpgradeQuantity" type="number" min="1" max="9999" />
+      <div class="field-hint">Raise this to match the harder tier for today's remaining completions. Resets to the quest's normal quantity tomorrow.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="declineTempUpgrade">Keep Current</button>
       <button class="btn-primary" id="acceptTempUpgrade">Upgrade</button>
@@ -832,87 +798,27 @@ const POINTS_PER_LEVEL = 3;
 const UPGRADE_STREAK_REQUIREMENT = 10;
 const STORAGE_KEY = 'system-state-v1';
 
-// Optional: point this at a local server (e.g. quest-local-server.js talking
-// to Ollama) to let the goal-setup chat use a real language model instead of
-// the local keyword matcher. Leave it as '' to stay fully offline — the
-// keyword matcher is always the automatic fallback either way, including if
-// this endpoint is unreachable when a message is sent.
-const AI_ENDPOINT = ''; // e.g. 'https://your-computer.your-tailnet.ts.net/generate-quests'
-
-// Starter-quest templates offered by the goal wizard, grouped by goal.
-// Each template becomes a real quest (with statRewards in the app's normal format)
-// when the user generates quests for that goal.
-const GOAL_LIBRARY = {
-  fitness: {
-    label:'Fitness', icon:'💪',
-    keywords:['fit','fitness','gym','workout','work out','exercise','run','running','muscle','strength','stronger','weight loss','lose weight','cardio','sport','sports'],
-    quests:[
-      {title:'Do a 15-minute workout', rank:'C', statKey:'STR', statAmt:2},
-      {title:'Take a 20-minute walk', rank:'D', statKey:'STA', statAmt:2},
-      {title:'Stretch for 5 minutes', rank:'E', statKey:'STA', statAmt:1}
-    ]
-  },
-  learning: {
-    label:'Learning', icon:'📚',
-    keywords:['learn','study','studying','read','reading','book','books','course','exam','school','university','college','knowledge','skill','language'],
-    quests:[
-      {title:'Read for 20 minutes', rank:'D', statKey:'KNW', statAmt:2},
-      {title:'Review notes from today', rank:'E', statKey:'KNW', statAmt:1},
-      {title:'Learn one new thing (article/video)', rank:'C', statKey:'KNW', statAmt:2}
-    ]
-  },
-  health: {
-    label:'Health & Wellness', icon:'🥗',
-    keywords:['health','healthy','diet','eat healthy','water','hydrate','sleep','rest','nutrition','wellness'],
-    quests:[
-      {title:'Drink 2L of water', rank:'E', statKey:'STA', statAmt:1},
-      {title:'Get 7+ hours of sleep', rank:'D', statKey:'STA', statAmt:2},
-      {title:'Eat a vegetable with a meal', rank:'D', statKey:'STA', statAmt:1}
-    ]
-  },
-  mindfulness: {
-    label:'Mindfulness', icon:'🧘',
-    keywords:['mindful','meditate','meditation','stress','stressed','anxiety','anxious','calm','journal','breathe','breathing','mental health','peace','overwhelmed'],
-    quests:[
-      {title:'Meditate for 10 minutes', rank:'C', statKey:'MEN', statAmt:2},
-      {title:'Write in a journal', rank:'D', statKey:'MEN', statAmt:2},
-      {title:'Take a few deep breaths before a stressful moment', rank:'E', statKey:'MEN', statAmt:1}
-    ]
-  },
-  productivity: {
-    label:'Productivity', icon:'🗂️',
-    keywords:['productive','productivity','focus','procrastinat','deadline','organized','organize','task','efficient','discipline','distracted'],
-    quests:[
-      {title:"Plan tomorrow's top 3 tasks", rank:'D', statKey:'MEN', statAmt:1},
-      {title:'Complete one 25-minute focus block', rank:'C', statKey:'MEN', statAmt:2},
-      {title:'Clear your inbox to zero', rank:'D', statKey:'KNW', statAmt:1}
-    ]
-  },
-  creativity: {
-    label:'Creativity', icon:'🎨',
-    keywords:['creative','creativity','draw','drawing','paint','painting','write','writing','music','art','hobby','craft'],
-    quests:[
-      {title:'Spend 15 minutes on a creative hobby', rank:'C', statKey:'CHM', statAmt:2},
-      {title:'Sketch, write, or brainstorm something new', rank:'D', statKey:'CHM', statAmt:1}
-    ]
-  },
-  social: {
-    label:'Relationships', icon:'👥',
-    keywords:['friend','friends','family','relationship','relationships','social','lonely','connect','reach out'],
-    quests:[
-      {title:'Reach out to a friend or family member', rank:'D', statKey:'CHM', statAmt:2},
-      {title:'Give someone a genuine compliment', rank:'E', statKey:'CHM', statAmt:1}
-    ]
-  },
-  finance: {
-    label:'Finance', icon:'💰',
-    keywords:['money','budget','finance','financial','save','saving','spend','spending','debt','invest','investing'],
-    quests:[
-      {title:"Log today's spending", rank:'D', statKey:'KNW', statAmt:1},
-      {title:'Review your budget for 5 minutes', rank:'D', statKey:'MEN', statAmt:1}
-    ]
-  }
-};
+// ============================================================
+// EDIT THIS LIST to change what "Load Default Quests" adds.
+// Each entry becomes one quest. Fields:
+//   title      - required, shown on the quest card
+//   category   - optional, shown as a colored tag
+//   rank       - 'E'|'D'|'C'|'B'|'A'|'S' — sets EXP reward and difficulty color
+//   recurrence - 'daily' | 'infinite' | 'once'
+//   quantity   - optional, defaults to 1 (reps/minutes/pages/etc.)
+//   stats      - optional array of stat rewards, e.g. [{key:'KNW',amt:1}].
+//                Keys: KNW/STR/CHM/MEN/STA (never SUC — Succulence can
+//                only rise from level-up points). Leave stats out (or [])
+//                for "no stat points" — EXP is always granted automatically.
+// ============================================================
+const DEFAULT_QUESTS = [
+  {title:'Brushing', rank:'E', recurrence:'daily'},
+  {title:'Eat on time', rank:'E', recurrence:'daily'},
+  {title:'Showering', rank:'E', recurrence:'daily'},
+  {title:'Go to college', rank:'E', recurrence:'daily', stats:[{key:'KNW',amt:1},{key:'MEN',amt:1}]},
+  {title:'No Youtube Shorts', rank:'E', recurrence:'daily'},
+  {title:'Focused Reading', rank:'C', recurrence:'infinite', quantity:20, stats:[{key:'KNW',amt:1},{key:'MEN',amt:1}]},
+];
 
 /* ============ STATE ============ */
 let state = null;
@@ -921,7 +827,6 @@ let selectedRank = 'E';
 let selectedRecur = 'daily';
 let selectedType = 'standard';
 let selectedStatReward = 'NONE';
-let chatMessages = [];
 let expandedQuestId = null;
 
 function defaultState(){
@@ -1023,6 +928,7 @@ async function loadState(){
   // and optional missed-quest penalties. Never overwrite existing values.
   state.quests.forEach(q=>{
     if(typeof q.tempUpgradeLevel !== 'number') q.tempUpgradeLevel = 0;
+    if(!('tempQuantity' in q)) q.tempQuantity = null;
     if(!Array.isArray(q.completionRanksToday)) q.completionRanksToday = [];
     if(typeof q.penaltyEnabled !== 'boolean') q.penaltyEnabled = false;
     if(!STAT_DEFS.some(st=>st.key===q.penaltyStat)) q.penaltyStat = 'STR';
@@ -1112,6 +1018,7 @@ function runDailyReset(){
       q.completionsToday = 0;
       q.tempUpgradeLevel = 0;
       q.completionRanksToday = [];
+      q.tempQuantity = null;
     }
   });
 
@@ -1307,6 +1214,8 @@ function buildQuestElement(q){
     recurrenceMeta = `<span class="tag" style="color:#5f7089">one-time</span>`;
   }
 
+  const effQuantity = (isInfinite && typeof q.tempQuantity === 'number') ? q.tempQuantity : q.quantity;
+  const isQtyBoosted = isInfinite && typeof q.tempQuantity === 'number' && q.tempQuantity !== q.quantity;
   const el = document.createElement('div');
   const isExpanded = expandedQuestId === q.id;
   el.className = 'quest'+(doneNow?' done':'')+(isExpanded?' expanded':'');
@@ -1319,7 +1228,7 @@ function buildQuestElement(q){
         <span class="rank-tag" style="color:${baseRankDef.color};border:1px solid ${baseRankDef.color}">${q.rank}</span>
         ${isBoosted ? `<span class="temp-rank-tag">⚡ Temp ${effectiveRankDef.key}</span>` : ''}
         ${q.type==='misc' ? `<span class="misc-tag">Misc</span>` : (q.category ? `<span class="tag" style="color:${catColor(q.category)}">${escapeHtml(q.category)}</span>` : '')}
-        ${q.quantity ? `<span class="qty-tag">×${q.quantity}</span>` : ''}
+        ${effQuantity ? `<span class="qty-tag${isQtyBoosted?' qty-tag-boosted':''}">×${effQuantity}${isQtyBoosted?' ⚡':''}</span>` : ''}
         <span class="q-xp">+${effectiveRankDef.xp} EXP${isBoosted ? ' next' : ''}</span>
         ${getRewards(q).map(r=>`<span class="sr-tag">+${r.amount} ${r.key}</span>`).join('')}
         ${q.reminderTime ? `<span class="tag" style="color:#7dd3fc">⏰ ${q.reminderTime}</span>` : ''}
@@ -1672,6 +1581,8 @@ function openTempUpgradeModal(id){
   const atS = currentIdx >= RANKS.length - 1;
 
   tempUpgradeQuestId = id;
+  const qtyField = document.getElementById('tempUpgradeQtyField');
+  const qtyInput = document.getElementById('tempUpgradeQuantity');
 
   if(atS){
     document.getElementById('tempUpgradeTitle').textContent = 'MAX TEMP RANK';
@@ -1680,6 +1591,7 @@ function openTempUpgradeModal(id){
     document.getElementById('tempUpgradeChoice').textContent = 'No further temporary upgrade is available today.';
     document.getElementById('acceptTempUpgrade').style.display = 'none';
     document.getElementById('declineTempUpgrade').textContent = 'Continue';
+    qtyField.style.display = 'none';
   } else {
     document.getElementById('tempUpgradeTitle').textContent = 'UPGRADE FOR TODAY?';
     document.getElementById('tempUpgradeText').innerHTML =
@@ -1689,6 +1601,8 @@ function openTempUpgradeModal(id){
       `Next completion: ${nextRank.key} = +${nextRank.xp} EXP`;
     document.getElementById('acceptTempUpgrade').style.display = '';
     document.getElementById('declineTempUpgrade').textContent = 'Keep Current';
+    qtyField.style.display = '';
+    qtyInput.value = (typeof q.tempQuantity === 'number' ? q.tempQuantity : q.quantity) || 1;
   }
 
   document.getElementById('tempUpgradeOverlay').classList.add('show');
@@ -1709,6 +1623,10 @@ async function acceptTempUpgrade(){
   const baseIdx = infiniteBaseIdx(q);
   const maxLevel = Math.max(0, RANKS.length - 1 - baseIdx);
   q.tempUpgradeLevel = Math.min((q.tempUpgradeLevel || 0) + 1, maxLevel);
+
+  const qtyInput = document.getElementById('tempUpgradeQuantity');
+  const rawQty = parseInt(qtyInput.value, 10);
+  q.tempQuantity = Math.max(1, Math.min(9999, isNaN(rawQty) ? q.quantity : rawQty));
 
   await saveState();
   closeTempUpgradeModal();
@@ -1918,43 +1836,7 @@ async function saveQuest(){
   render();
 }
 
-/* ============ GOAL WIZARD (keyword-parsed chat) ============ */
-// This is a lightweight local keyword matcher, not a real language model —
-// there's no backend or API key in a static site to call one. It scans the
-// sentence for words tied to each goal category below, plus a small pattern
-// for "learn/study/practice X" to personalize one quest to what you typed.
-function resetChat(){
-  chatMessages = [{role:'system', text:"Tell me what you're working on — goals, habits, anything you want to build. I'll turn it into starter quests."}];
-  renderChatLog();
-}
-
-function renderChatLog(){
-  const log = document.getElementById('chatLog');
-  log.innerHTML = chatMessages.map(m=>{
-    const quests = m.questTitles && m.questTitles.length
-      ? `<div class="cm-quests">${m.questTitles.map(t=>'• '+escapeHtml(t)).join('<br>')}</div>`
-      : '';
-    return `<div class="chat-msg ${m.role}">${escapeHtml(m.text)}${quests}</div>`;
-  }).join('');
-  log.scrollTop = log.scrollHeight;
-}
-
-function matchGoalsFromText(text){
-  const lower = text.toLowerCase();
-  return Object.keys(GOAL_LIBRARY).filter(key =>
-    GOAL_LIBRARY[key].keywords.some(kw => lower.includes(kw))
-  );
-}
-
-function extractCustomLearningQuest(text){
-  const m = text.match(/\b(?:learn|study|practice)\s+([a-zA-Z][a-zA-Z\s]{1,28}?)(?:[.,!?]|$| and | to | for | so | because)/i);
-  if(!m) return null;
-  const topic = m[1].trim().replace(/\s+/g,' ');
-  if(topic.length < 2) return null;
-  const titleTopic = topic.charAt(0).toUpperCase() + topic.slice(1);
-  return {title:`Practice ${titleTopic}`, rank:'D', category:'Learning', statKey:'KNW', statAmt:2, recurrence:'daily'};
-}
-
+/* ============ DEFAULT QUESTS ============ */
 function buildQuestFromTemplate(tpl, categoryLabel, createdAt){
   return {
     id: uid(),
@@ -1963,8 +1845,10 @@ function buildQuestFromTemplate(tpl, categoryLabel, createdAt){
     type: 'standard',
     rank: tpl.rank,
     xp: RANKS.find(r=>r.key===tpl.rank).xp,
-    quantity: 1,
-    statRewards: tpl.statKey ? [{key:tpl.statKey, amount:tpl.statAmt}] : [],
+    quantity: tpl.quantity || 1,
+    statRewards: Array.isArray(tpl.stats) && tpl.stats.length
+      ? tpl.stats.map(s => ({key:s.key, amount:s.amt}))
+      : (tpl.statKey ? [{key:tpl.statKey, amount:tpl.statAmt}] : []),
     reminderTime: null,
     lastNotifiedDate: null,
     recurrence: tpl.recurrence || 'daily',
@@ -1976,124 +1860,39 @@ function buildQuestFromTemplate(tpl, categoryLabel, createdAt){
     completionsToday:0,
     questStreak:0,
     tempUpgradeLevel:0,
+    tempQuantity:null,
     completionRanksToday:[],
     createdAt
   };
 }
 
-function openOnboardModal(){
-  document.getElementById('onboardOverlay').classList.add('show');
-  document.getElementById('chatInput').focus();
-}
-function closeOnboardModal(){
-  document.getElementById('onboardOverlay').classList.remove('show');
-}
-
-// Calls your configured local server once per message. Treats the model's
-// output as untrusted input, same as any API response — every field is
-// validated against known ranks/stats and clamped/truncated before use.
-async function fetchAIQuests(text){
-  const res = await fetch(AI_ENDPOINT, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({text})
-  });
-  if(!res.ok) throw new Error('AI endpoint returned ' + res.status);
-  const data = await res.json();
-  if(!data || !Array.isArray(data.quests)) throw new Error('Unexpected response shape');
-
-  const validRanks = RANKS.map(r=>r.key);
-  const validStats = STAT_DEFS.map(s=>s.key);
-
-  const cleaned = data.quests.map(q=>{
-    const title = String(q.title || '').slice(0,60).trim();
-    if(!title) return null;
-    const rank = validRanks.includes(q.rank) ? q.rank : 'D';
-    const statKey = validStats.includes(q.statKey) ? q.statKey : null;
-    const statAmt = statKey ? Math.max(1, Math.min(20, parseInt(q.statAmt,10) || 1)) : 0;
-    const recurrence = q.recurrence === 'once' ? 'once' : 'daily';
-    const category = String(q.category || 'Misc').slice(0,20).trim() || 'Misc';
-    return {title, rank, statKey, statAmt, recurrence, category};
-  }).filter(Boolean).slice(0,8);
-
-  if(cleaned.length === 0) throw new Error('No usable quests in response');
-  return cleaned;
-}
-
-async function handleChatSend(){
-  const input = document.getElementById('chatInput');
-  const sendBtn = document.getElementById('chatSendBtn');
-  const text = input.value.trim();
-  if(!text) return;
-  chatMessages.push({role:'user', text});
-  input.value = '';
-  renderChatLog();
-
-  let templates = null;
-  let usedAI = false;
-
-  if(AI_ENDPOINT){
-    sendBtn.disabled = true;
-    chatMessages.push({role:'system', text:'Consulting the System…', transient:true});
-    renderChatLog();
-    try{
-      templates = await fetchAIQuests(text);
-      usedAI = true;
-    }catch(e){
-      templates = null; // falls through to the local matcher below
-    }
-    chatMessages = chatMessages.filter(m => !m.transient);
-    sendBtn.disabled = false;
-  }
-
-  let addedTitles = [];
+// Adds every entry in DEFAULT_QUESTS as a real quest. Skips any whose title
+// already exists (case-insensitive) so repeat taps don't pile up duplicates.
+async function loadDefaultQuests(){
+  const existingTitles = new Set(state.quests.map(q => q.title.trim().toLowerCase()));
   let t = Date.now();
+  const added = [];
 
-  if(templates){
-    templates.forEach(tpl=>{
-      state.quests.push(buildQuestFromTemplate(tpl, tpl.category, t++));
-      addedTitles.push(tpl.title);
-    });
-  } else {
-    // local keyword matcher — either AI wasn't configured, or it failed
-    const matched = matchGoalsFromText(text);
-    const custom = extractCustomLearningQuest(text);
-
-    if(matched.length === 0 && !custom){
-      const note = AI_ENDPOINT
-        ? "The local server is unreachable right now, and I couldn't pick out a clear goal locally either — try mentioning something like fitness, reading, sleep, focus, creativity, relationships, or money."
-        : "I couldn't pick out a clear goal from that — try mentioning something like fitness, reading, sleep, focus, creativity, relationships, or money. You can always add a quest manually too.";
-      chatMessages.push({role:'system', text: note});
-      renderChatLog();
-      return;
-    }
-
-    matched.forEach(key=>{
-      GOAL_LIBRARY[key].quests.forEach(tpl=>{
-        state.quests.push(buildQuestFromTemplate(tpl, GOAL_LIBRARY[key].label, t++));
-        addedTitles.push(tpl.title);
-      });
-    });
-    if(custom){
-      state.quests.push(buildQuestFromTemplate(custom, custom.category, t++));
-      addedTitles.push(custom.title);
-    }
-  }
+  DEFAULT_QUESTS.forEach(tpl=>{
+    const key = (tpl.title||'').trim().toLowerCase();
+    if(!key || existingTitles.has(key)) return;
+    state.quests.push(buildQuestFromTemplate(tpl, tpl.category || '', t++));
+    existingTitles.add(key);
+    added.push(tpl.title);
+  });
 
   state.onboardingComplete = true;
   await saveState();
 
-  const prefix = usedAI ? '' : (AI_ENDPOINT ? 'The local server is unreachable right now — using offline suggestions instead. ' : '');
-  chatMessages.push({
-    role:'system',
-    text: `${prefix}Added ${addedTitles.length} quest${addedTitles.length===1?'':'s'}:`,
-    questTitles: addedTitles
-  });
-  renderChatLog();
-
   currentTab = 'active';
   document.querySelectorAll('.tab').forEach(tb=>tb.classList.toggle('active', tb.dataset.tab==='active'));
   render();
+
+  if(added.length){
+    notify('Quests Added', `${added.length} default quest${added.length===1?'':'s'} loaded`, 'questComplete');
+  } else {
+    notify('Nothing New', 'All default quests are already active', '');
+  }
 }
 
 /* ============ QUEST UPGRADE ============ */
@@ -2137,6 +1936,7 @@ async function confirmUpgradeQuest(){
   // discard any active daily boost. Past completion history is retained so
   // the undo button can still reverse the exact rewards already granted.
   q.tempUpgradeLevel = 0;
+  q.tempQuantity = null;
   q.lastUpgradeStreak = relevantStreakFor(q);
 
   await saveState();
@@ -2161,21 +1961,7 @@ document.getElementById('declineTempUpgrade').addEventListener('click', declineT
 document.getElementById('acceptTempUpgrade').addEventListener('click', acceptTempUpgrade);
 document.getElementById('tempUpgradeOverlay').addEventListener('click', e=>{ if(e.target.id==='tempUpgradeOverlay') declineTempUpgrade(); });
 
-document.getElementById('openOnboardBtn').addEventListener('click', ()=>{
-  resetChat();
-  openOnboardModal();
-});
-document.getElementById('closeOnboard').addEventListener('click', closeOnboardModal);
-document.getElementById('skipOnboard').addEventListener('click', async ()=>{
-  state.onboardingComplete = true;
-  await saveState();
-  closeOnboardModal();
-});
-document.getElementById('onboardOverlay').addEventListener('click', e=>{ if(e.target.id==='onboardOverlay') closeOnboardModal(); });
-document.getElementById('chatSendBtn').addEventListener('click', handleChatSend);
-document.getElementById('chatInput').addEventListener('keydown', e=>{
-  if(e.key === 'Enter'){ e.preventDefault(); handleChatSend(); }
-});
+document.getElementById('loadDefaultQuestsBtn').addEventListener('click', loadDefaultQuests);
 
 document.getElementById('rankSelect').addEventListener('click', e=>{
   const opt = e.target.closest('.rank-opt');
@@ -2406,10 +2192,9 @@ if('serviceWorker' in navigator){
   checkReminders();
   setInterval(checkReminders, 20000);
 
-  // first-time users with no quests yet get the goal wizard automatically
+  // first-time users with no quests yet get the default quest set automatically
   if(!state.onboardingComplete && state.quests.length === 0){
-    resetChat();
-    setTimeout(openOnboardModal, 400);
+    setTimeout(loadDefaultQuests, 400);
   }
 
   // Notify about streak breaks and any configured attribute penalties
