@@ -312,6 +312,18 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
   color:var(--danger);cursor:pointer;text-transform:uppercase;transition:.15s;
 }
 .q-remove-btn:hover{background:var(--danger);color:#1a0508;}
+.q-skip-btn{
+  font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:.08em;
+  padding:8px 14px;background:var(--bg-panel2);border:1px solid var(--text-dimmer);
+  color:var(--text-dim);cursor:pointer;text-transform:uppercase;transition:.15s;
+}
+.q-skip-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-soft);}
+.skipped-notice{
+  margin-top:6px;padding:10px 4px 2px;text-align:center;
+  font-size:12px;color:var(--text-dimmer);letter-spacing:.02em;
+}
+.skipped-restore{color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.skipped-restore:hover{color:#7de3ff;}
 .empty{color:var(--text-dim);font-size:13px;padding:20px 0;text-align:center;letter-spacing:.04em;}
 
 /* ---------- modal ---------- */
@@ -783,7 +795,7 @@ h1,h2,h3,.disp{font-family:'Orbitron',sans-serif;letter-spacing:.04em;}
       <div class="penalty-grid" id="penaltyDaysRow" style="margin-top:8px;grid-template-columns:1fr;">
         <input id="fPenaltyDays" type="number" min="1" max="365" value="3" placeholder="Missed days" />
       </div>
-      <div class="field-hint">After this many consecutive missed days, the selected attribute loses the chosen points once. Completing the quest resets the penalty counter, so another missed streak can trigger it again.</div>
+      <div class="field-hint">Every time this many consecutive days are missed, the selected attribute loses the chosen points — so missing 6 days with a 3-day setting costs two penalties. Completing the quest resets the counter.</div>
     </div>
     <div class="field">
       <label>Reminder Time (optional)</label>
@@ -1133,8 +1145,9 @@ async function loadState(){
     if(!STAT_DEFS.some(st=>st.key===q.penaltyStat)) q.penaltyStat = 'STR';
     if(typeof q.penaltyAmount !== 'number') q.penaltyAmount = 1;
     if(typeof q.penaltyAfterDays !== 'number') q.penaltyAfterDays = 3;
-    if(typeof q.penaltyTriggered !== 'boolean') q.penaltyTriggered = false;
+    if(typeof q.penaltyStrikesApplied !== 'number') q.penaltyStrikesApplied = q.penaltyTriggered ? 1 : 0;
     if(typeof q.noUpgrade !== 'boolean') q.noUpgrade = false;
+    if(typeof q.skippedToday !== 'boolean') q.skippedToday = false;
   });
   // Mark the current schema only after the non-destructive backfill above.
   // No XP, stats, ranks, streaks, or completion history are rewritten here.
@@ -1164,19 +1177,36 @@ function getMissedDays(q, today){
   return Math.max(0, dateDiffInDays(anchor, today) - (q.lastCompletedDate ? 1 : 0));
 }
 
+// Fires once per penaltyAfterDays interval the quest has been missed —
+// not just once ever. E.g. with penaltyAfterDays=3, missing 6 days fires
+// two strikes (at day 3 and day 6), 9 days fires three, and so on.
+// penaltyStrikesApplied tracks how many intervals have already been
+// charged since the quest's last completion, so re-running this on a
+// later day only charges the NEW intervals crossed since then — and if
+// the app wasn't opened for a long stretch, all newly-due strikes fire
+// together in that one catch-up pass. Returns an array (0, 1, or more
+// events) rather than a single result.
 function applyMissedQuestPenalty(q, missedDays){
-  if(!q.penaltyEnabled || q.penaltyTriggered) return null;
-  if(q.recurrence !== 'daily' && q.recurrence !== 'infinite') return null;
-  if(missedDays < (q.penaltyAfterDays || 3)) return null;
+  if(!q.penaltyEnabled) return [];
+  if(q.recurrence !== 'daily' && q.recurrence !== 'infinite') return [];
+
+  const afterDays = q.penaltyAfterDays || 3;
+  const dueStrikes = Math.floor(missedDays / afterDays);
+  const alreadyApplied = q.penaltyStrikesApplied || 0;
+  const newStrikes = dueStrikes - alreadyApplied;
+  if(newStrikes <= 0) return [];
 
   const statKey = STAT_DEFS.some(st=>st.key===q.penaltyStat) ? q.penaltyStat : 'STR';
   const amount = Math.max(1, Math.min(20, parseInt(q.penaltyAmount,10) || 1));
-  const before = Number(state.stats[statKey]) || 0;
-  const actualLoss = Math.min(before, amount);
-  state.stats[statKey] = Math.max(0, before - amount);
-  q.penaltyTriggered = true;
-
-  return {title:q.title, statKey, amount:actualLoss, attempted:amount, missedDays};
+  const events = [];
+  for(let i=0;i<newStrikes;i++){
+    const before = Number(state.stats[statKey]) || 0;
+    const actualLoss = Math.min(before, amount);
+    state.stats[statKey] = Math.max(0, before - amount);
+    events.push({title:q.title, statKey, amount:actualLoss, attempted:amount, missedDays, strike: alreadyApplied + i + 1});
+  }
+  q.penaltyStrikesApplied = dueStrikes;
+  return events;
 }
 
 function runDailyReset(){
@@ -1197,10 +1227,11 @@ function runDailyReset(){
       }
 
       if(wasMissed){
-        const penalty = applyMissedQuestPenalty(q, missedDays);
-        if(penalty && penalty.amount > 0) penaltyEvents.push(penalty);
+        const penalties = applyMissedQuestPenalty(q, missedDays);
+        penalties.forEach(p => { if(p.amount > 0) penaltyEvents.push(p); });
       }
       q.completedToday = (q.lastCompletedDate === today);
+      q.skippedToday = false;
     } else if(q.recurrence === 'infinite'){
       const missedDays = getMissedDays(q, today);
       const wasMissed = q.lastCompletedDate !== yest && q.lastCompletedDate !== today;
@@ -1212,13 +1243,14 @@ function runDailyReset(){
       }
 
       if(wasMissed){
-        const penalty = applyMissedQuestPenalty(q, missedDays);
-        if(penalty && penalty.amount > 0) penaltyEvents.push(penalty);
+        const penalties = applyMissedQuestPenalty(q, missedDays);
+        penalties.forEach(p => { if(p.amount > 0) penaltyEvents.push(p); });
       }
       q.completionsToday = 0;
       q.tempUpgradeLevel = 0;
       q.completionRanksToday = [];
       q.tempQuantity = null;
+      q.skippedToday = false;
     }
   });
 
@@ -1407,12 +1439,17 @@ function renderQuests(){
   list.innerHTML = '';
 
   const filtered = state.quests.filter(q=>{
+    if(currentTab==='active' && q.skippedToday) return false; // hidden for today, not completed
     if(q.recurrence==='infinite') return currentTab==='active'; // always active — never "completed"
     const doneNow = q.recurrence==='daily' ? q.completedToday : q.completed;
     return currentTab==='active' ? !doneNow : doneNow;
   });
 
-  if(filtered.length===0){
+  const skippedCount = currentTab==='active'
+    ? state.quests.filter(q=>q.skippedToday).length
+    : 0;
+
+  if(filtered.length===0 && skippedCount===0){
     list.innerHTML = `<div class="empty">${currentTab==='active' ? 'No active quests. Register one to begin.' : 'Nothing completed yet.'}</div>`;
     return;
   }
@@ -1435,6 +1472,13 @@ function renderQuests(){
 
     groupQuests.forEach(q => list.appendChild(buildQuestElement(q)));
   });
+
+  if(skippedCount > 0){
+    const notice = document.createElement('div');
+    notice.className = 'skipped-notice';
+    notice.innerHTML = `${skippedCount} quest${skippedCount===1?'':'s'} skipped for today · <span class="skipped-restore" id="restoreSkippedBtn">Restore</span>`;
+    list.appendChild(notice);
+  }
 }
 
 function buildQuestElement(q){
@@ -1456,6 +1500,12 @@ function buildQuestElement(q){
     recurrenceMeta = `<span class="tag" style="color:#5f7089">one-time</span>`;
   }
 
+  // Displayed EXP matches what completing the quest actually grants: its
+  // own stored xp (rank default or a custom override) plus, for infinite
+  // quests, the same rank-table bonus the temp-rank boost adds on top.
+  const baseRankXp = (RANKS.find(r=>r.key===q.rank) || RANKS[0]).xp;
+  const xpBonus = isInfinite ? Math.max(0, effectiveRankDef.xp - baseRankXp) : 0;
+  const effectiveXp = (q.xp||0) + xpBonus;
   const effQuantity = (isInfinite && typeof q.tempQuantity === 'number') ? q.tempQuantity : q.quantity;
   const isQtyBoosted = isInfinite && typeof q.tempQuantity === 'number' && q.tempQuantity !== q.quantity;
   const el = document.createElement('div');
@@ -1471,7 +1521,7 @@ function buildQuestElement(q){
         ${isBoosted ? `<span class="temp-rank-tag">⚡ Temp ${effectiveRankDef.key}</span>` : ''}
         ${q.type==='misc' ? `<span class="misc-tag">Misc</span>` : (q.category ? `<span class="tag" style="color:${catColor(q.category)}">${escapeHtml(q.category)}</span>` : '')}
         ${effQuantity ? `<span class="qty-tag${isQtyBoosted?' qty-tag-boosted':''}">×${effQuantity}${isQtyBoosted?' ⚡':''}</span>` : ''}
-        <span class="q-xp">+${effectiveRankDef.xp} EXP${isBoosted ? ' next' : ''}</span>
+        <span class="q-xp">+${effectiveXp} EXP${isBoosted ? ' next' : ''}</span>
         ${effectiveStatRewards(q).map(r=>`<span class="sr-tag${isBoosted?' sr-tag-boosted':''}">+${r.amount} ${r.key}${isBoosted?' ⚡':''}</span>`).join('')}
         ${q.reminderTime ? `<span class="tag" style="color:#7dd3fc">⏰ ${q.reminderTime}</span>` : ''}
         ${recurrenceMeta}
@@ -1482,7 +1532,10 @@ function buildQuestElement(q){
       ${isExpanded ? `
         <div class="quest-expanded">
           <div class="quest-expanded-note">Quests cannot be edited.</div>
-          <button class="q-remove-btn" data-remove="${q.id}">Remove Quest</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${(q.recurrence!=='once' && !doneNow) ? `<button class="q-skip-btn" data-skip="${q.id}">Skip Today</button>` : ''}
+            <button class="q-remove-btn" data-remove="${q.id}">Remove Quest</button>
+          </div>
         </div>
       ` : ''}
     </div>
@@ -1753,11 +1806,10 @@ async function toggleQuest(id){
     } else {
       q.completedToday = true;
       // A successful completion starts a fresh penalty cycle.
-      q.penaltyTriggered = false;
+      q.penaltyStrikesApplied = 0;
       const wasYesterday = q.lastCompletedDate === yesterdayStr();
       q.streak = wasYesterday ? (q.streak||0)+1 : 1;
       q.lastCompletedDate = today;
-      q.penaltyTriggered = false;
       const leveled = addXp(q.xp);
       applyStatReward(q, 1);
       trackHeroismCompletion(q, 1);
@@ -1800,39 +1852,51 @@ async function toggleInfiniteQuest(id, delta){
     // adds +1 to every stat reward per temp upgrade level.
     const rewardRank = infiniteEffectiveRank(q);
     const boost = q.tempUpgradeLevel || 0;
+    // EXP is the quest's own xp (its rank default, or a custom override)
+    // plus whatever bonus the rank table would normally add for the
+    // current temp rank tier — so a custom EXP value is respected as the
+    // base, while the temp-upgrade escalation still behaves exactly as
+    // before for quests using the plain rank default.
+    const baseRankXp = (RANKS.find(r=>r.key===q.rank) || RANKS[0]).xp;
+    const xpBonus = Math.max(0, rewardRank.xp - baseRankXp);
+    const grantedXp = (q.xp||0) + xpBonus;
     const boostedRewards = effectiveStatRewards(q);
     const rewardMsg = boostedRewards.length ? ' · ' + boostedRewards.map(r=>`+${r.amount} ${r.key}`).join(', ') : '';
     const wasFirstToday = (q.completionsToday||0) === 0;
 
     q.completionsToday = (q.completionsToday||0) + 1;
-    q.completionRanksToday.push({rank: rewardRank.key, boost});
+    q.completionRanksToday.push({rank: rewardRank.key, boost, xp: grantedXp});
     q.questStreak = (q.questStreak||0) + 1;
     if(wasFirstToday){
       const wasYesterday = q.lastCompletedDate === yesterdayStr();
       q.streak = wasYesterday ? (q.streak||0)+1 : 1;
       q.lastCompletedDate = today;
-      q.penaltyTriggered = false;
+      q.penaltyStrikesApplied = 0;
     }
-    const leveled = addXp(rewardRank.xp);
+    const leveled = addXp(grantedXp);
     applyStatRewardList(boostedRewards, 1);
     trackHeroismCompletion(q, 1);
     const boostNote = rewardRank.key !== q.rank ? ` — Temp Rank ${rewardRank.key}` : '';
-    notify('Quest Complete', `${q.title} · +${rewardRank.xp} EXP${rewardMsg}${boostNote}`, 'questComplete');
+    notify('Quest Complete', `${q.title} · +${grantedXp} EXP${rewardMsg}${boostNote}`, 'questComplete');
     if(leveled) announceLevelUp();
   } else {
     if((q.completionsToday||0) <= 0) return; // nothing to undo
 
     const lastEntry = q.completionRanksToday.length
       ? q.completionRanksToday.pop()
-      : {rank: q.rank, boost: 0};
+      : {rank: q.rank, boost: 0, xp: q.xp};
     const lastRankKey = (typeof lastEntry === 'string') ? lastEntry : lastEntry.rank;
     const lastBoost = (typeof lastEntry === 'string') ? 0 : (lastEntry.boost || 0);
-    const lastRank = RANKS.find(r=>r.key===lastRankKey) || RANKS.find(r=>r.key===q.rank) || RANKS[0];
+    // Older saves may not have the xp field on each history entry — fall
+    // back to recomputing it from the rank table the old way.
+    const lastXp = (typeof lastEntry === 'object' && typeof lastEntry.xp === 'number')
+      ? lastEntry.xp
+      : (RANKS.find(r=>r.key===lastRankKey) || RANKS.find(r=>r.key===q.rank) || RANKS[0]).xp;
     const lastRewards = getRewards(q).map(r => ({key:r.key, amount:r.amount + lastBoost}));
 
     q.completionsToday -= 1;
     q.questStreak = Math.max(0, (q.questStreak||0) - 1);
-    state.xp = Math.max(0, state.xp - lastRank.xp);
+    state.xp = Math.max(0, state.xp - lastXp);
     applyStatRewardList(lastRewards, -1);
     trackHeroismCompletion(q, -1);
     if(q.completionsToday === 0){
@@ -1877,8 +1941,10 @@ function openTempUpgradeModal(id){
     document.getElementById('tempUpgradeText').innerHTML =
       `<b>${escapeHtml(q.title)}</b> is currently Rank ${currentRank.key}.
        Activate Rank ${nextRank.key} for today's remaining completions, or keep repeating it at Rank ${currentRank.key}.`;
+    const baseRankXp = (RANKS.find(r=>r.key===q.rank) || RANKS[0]).xp;
+    const nextGrantedXp = (q.xp||0) + Math.max(0, nextRank.xp - baseRankXp);
     document.getElementById('tempUpgradeChoice').textContent =
-      `Next completion: ${nextRank.key} = +${nextRank.xp} EXP` +
+      `Next completion: ${nextRank.key} = +${nextGrantedXp} EXP` +
       (getRewards(q).length ? ` · ${getRewards(q).map(r=>`+${r.amount+(q.tempUpgradeLevel||0)+1} ${r.key}`).join(', ')}` : '');
     document.getElementById('acceptTempUpgrade').style.display = '';
     document.getElementById('declineTempUpgrade').textContent = 'Keep Current';
@@ -1941,6 +2007,25 @@ function announceLevelUp(){
 async function deleteQuest(id){
   state.quests = state.quests.filter(q=>q.id!==id);
   if(expandedQuestId === id) expandedQuestId = null;
+  await saveState();
+  render();
+}
+
+// Hides a daily/infinite quest from the Active list for the rest of today
+// without marking it complete — it still counts as missed for streak and
+// penalty purposes, same as if it had just been left undone. Reappears
+// automatically at the next daily reset.
+async function skipQuestForToday(id){
+  const q = state.quests.find(q=>q.id===id);
+  if(!q || q.recurrence==='once') return;
+  q.skippedToday = true;
+  if(expandedQuestId === id) expandedQuestId = null;
+  await saveState();
+  render();
+}
+
+async function restoreSkippedQuests(){
+  state.quests.forEach(q=>{ q.skippedToday = false; });
   await saveState();
   render();
 }
@@ -2112,8 +2197,9 @@ async function saveQuest(){
     penaltyStat,
     penaltyAmount,
     penaltyAfterDays,
-    penaltyTriggered:false,
+    penaltyStrikesApplied:0,
     noUpgrade,
+    skippedToday:false,
     createdAt: Date.now()
   });
   await saveState();
@@ -2153,8 +2239,9 @@ function buildQuestFromTemplate(tpl, categoryLabel, createdAt){
     penaltyStat: (tpl.penalty && tpl.penalty.stat) || 'STR',
     penaltyAmount: (tpl.penalty && tpl.penalty.amount) || 1,
     penaltyAfterDays: (tpl.penalty && tpl.penalty.afterDays) || 3,
-    penaltyTriggered:false,
+    penaltyStrikesApplied:0,
     noUpgrade: !!tpl.noUpgrade,
+    skippedToday:false,
     createdAt
   };
 }
@@ -2333,6 +2420,10 @@ document.getElementById('questList').addEventListener('click', e=>{
   if(upg){ openUpgradeModal(upg.dataset.upgrade); return; }
   const removeBtn = e.target.closest('.q-remove-btn');
   if(removeBtn){ deleteQuest(removeBtn.dataset.remove); return; }
+  const skipBtn = e.target.closest('.q-skip-btn');
+  if(skipBtn){ skipQuestForToday(skipBtn.dataset.skip); return; }
+  const restoreBtn = e.target.closest('.skipped-restore');
+  if(restoreBtn){ restoreSkippedQuests(); return; }
   const tile = e.target.closest('.quest');
   if(tile){
     const qid = tile.dataset.id;
@@ -2521,7 +2612,7 @@ if('serviceWorker' in navigator){
     penaltyEvents.forEach((p, i)=>{
       setTimeout(()=>{
         const lossText = p.amount > 0 ? `−${p.amount} ${p.statKey}` : `No ${p.statKey} to lose`;
-        notify('Quest Penalty', `${p.title} · ${lossText} after ${p.missedDays} missed days`, 'penalty');
+        notify('Quest Penalty', `${p.title} · ${lossText} (strike ${p.strike || 1}, ${p.missedDays} days missed)`, 'penalty');
       }, 650 + i*350);
     });
   }
